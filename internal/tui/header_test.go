@@ -7,16 +7,25 @@ import (
 	"github.com/bprendie/subweazl/internal/config"
 )
 
-func TestMainHeaderUsesCompactHeader(t *testing.T) {
-	for _, height := range []int{40, 46, 60} {
-		m := headerTestModel(t, 100, height)
-		got := m.appHeader(90)
-		if got != "" && got[0] == '\n' {
-			t.Fatalf("main header should stay compact at height %d", height)
-		}
-		if strings.Contains(got, ".________") {
-			t.Fatalf("main header should not render the full logo at height %d", height)
-		}
+func TestMainHeaderUsesFullLogoWithoutTopPadding(t *testing.T) {
+	m := headerTestModel(t, 100, 40)
+	got := m.appHeader(90)
+	if got == "" || got[0] == '\n' {
+		t.Fatal("main logo header should not start with a blank line")
+	}
+	if lines := strings.Count(got, "\n") + 1; lines < 7 {
+		t.Fatalf("main header should include the full logo, got %d lines", lines)
+	}
+}
+
+func TestMainHeaderFallsBackToCompactWhenNarrow(t *testing.T) {
+	m := headerTestModel(t, 60, 40)
+	got := m.appHeader(40)
+	if got == "" || got[0] == '\n' {
+		t.Fatal("compact header should not start with a blank line")
+	}
+	if lines := strings.Count(got, "\n") + 1; lines != 3 {
+		t.Fatalf("compact header should be one bordered line, got %d rows", lines)
 	}
 }
 

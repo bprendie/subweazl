@@ -36,7 +36,7 @@ func renderLogo(s string, width int) string {
 	wordmark := gradientLogo(s)
 	logoWidth := maxLineWidth(s)
 	if width <= 0 || width < logoWidth+10 {
-		return "\n" + wordmark
+		return wordmark
 	}
 
 	leftWidth := 6
@@ -58,7 +58,7 @@ func renderLogo(s string, width int) string {
 			out.WriteByte('\n')
 		}
 	}
-	return "\n" + out.String()
+	return out.String()
 }
 
 func gradientLogo(s string) string {
