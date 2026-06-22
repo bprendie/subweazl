@@ -505,7 +505,9 @@ invent music.
 Scope:
 
 - Add provider setup patterned after WeazlWrite where applicable.
-- Support OpenAI-compatible/vLLM first, Ollama second if still desired.
+- Make the installer/setup flow ask for the LLM provider once LLM support lands.
+- Support OpenAI-compatible/vLLM first, with `https://granite.prendie.io` as
+  the known vLLM smoke/default endpoint; keep Ollama second if still desired.
 - Summarize vaulted listening history without sending raw secrets or
   credentials.
 - Send candidate IDs and metadata to the model.
@@ -523,6 +525,8 @@ Exit criteria:
 - LLM can create a validated queue from known candidates.
 - Bad/model-invented IDs are rejected cleanly.
 - AI remains disabled until explicitly configured.
+- Installer/setup can configure the provider, URL, model, and context window
+  using the WeazlWrite-style flow.
 - Verification/build/install/smoke loop passes.
 
 ### Phase 9. Polish, Docs, And Install
@@ -587,6 +591,9 @@ Break these down next.
 
 ### LLM Sub-Decisions
 
-- Which provider setup pattern should be borrowed from WeazlWrite?
+- Provider setup baseline: borrow the WeazlWrite flow. Prompt for provider
+  (`vllm` first, `ollama` second), base URL, discovered/manual model, and
+  context window. Normalize vLLM URLs without `/v1`.
+- Default/smoke vLLM endpoint: `https://granite.prendie.io`.
 - What minimum deterministic playlist generator exists before LLM curation?
 - What private data is allowed into prompts, and how is it summarized?
