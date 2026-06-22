@@ -1,77 +1,60 @@
 # Subweazl
 
 ```text
- .________    ___.   __      __          _______________.__   
- |   ____/__ _\_ |__/  \    /  \ ____   /  |  \____    /|  |  
+ .________    ___.   __      __           _______________.__   
+ |    ____/__ _\_ |__/  \    /  \ ____   /  |  \____    /|  |  
  |____  \|  |  \ __ \   \/\/   // __ \ /   |  |_/     / |  |  
  /       \  |  / \_\ \        /\  ___//    ^   /     /_ |  |__
 /______  /____/|___  /\__/\  /  \___  >____   /_______ \|____/
        \/          \/      \/       \/     |__|       \/
-SIGNAL // SELF-HOSTED // BARE METAL
+SIGNAL // ENCRYPTED VAULTS // BARE METAL
 ```
 
-Subweazl is a terminal-native Subsonic/Navidrome client with a private local
-vault. It is built for the daily path: connect to your server, unlock your
-vault, jump back into music, search fast, queue tracks, save private playlists,
-and generate recommendations from music the app actually knows exists.
+Cloud sync is just telemetry disguised as convenience. Letting a corporation host your playlists means letting them log your vibe, track your hours, and memory-hole your curated tracks whenever licensing rights shift.
 
-There is no local-folder library mode. Subweazl talks to the Subsonic API for
-music and uses the local vault only for private app state: play history, queue
-snapshots, private playlists, synced server metadata, deterministic recipes, and
-optional LLM curator runs.
+Subweazl is the exploit. It’s a sovereign, terminal-native Subsonic client built for the daily path. Connect to your server, unlock your vault, and jump straight into the music. It jacks into the Subsonic API for the raw FLACs, but your curation stays strictly on the bare metal.
 
-`mpv` handles playback. `ffmpeg` feeds the Harmonica VU meters. Cover art
-renders directly in the TUI.
+There is no local-folder mode. We pull the audio from the server and keep the state in the vault. Play history, queue snapshots, private playlists, cached metadata, and deterministic recipes are locked under paranoid local encryption.
 
-## Install
+Cover art renders right in the grid. `mpv` does the heavy lifting. `ffmpeg` feeds the live Harmonica VU meters.
 
-Requirements:
+No cloud sync. No telemetry. Just your music, locked down tight.
 
-- Go 1.25+
-- `mpv` in PATH for playback
-- `ffmpeg` in PATH for the visualizer
+## Forge The Binary
 
-Linux / macOS:
+You need Go 1.25+, `mpv`, `ffmpeg`, and a C compiler for the SQLite vault. If you don't have them, shave the yak.
+
+**Linux / macOS:**
 
 ```sh
 SUBWEAZL_SKIP_LAUNCH=1 SUBWEAZL_SKIP_LLM_SETUP=1 ./scripts/install.sh
 ```
 
-Windows:
+**Windows (MSYS2 required for C compiler):**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -SkipLaunch
 ```
 
-Run from source:
+No wizards. No corporate installers. The script compiles the Go binary, drops it into your path, and gets out of the way.
+
+Want to run it raw?
 
 ```sh
 go run ./cmd/subweazl
 ```
 
-The Linux installer can offer optional LLM setup during an interactive install.
-Set `SUBWEAZL_SKIP_LLM_SETUP=1` for automated builds.
-
-## First Run
-
-Start the app:
+## Boot Sequence & The Vault
 
 ```sh
 subweazl
 ```
 
-First run is staged:
+First boot is staged. You punch in your Navidrome/Subsonic server coordinates, test the connection, and then Subweazl locks the door. You set a bcrypt vault password. The SQLite database is choked down to `0600` permissions.
 
-1. Enter your Subsonic/Navidrome server URL, username, and password.
-2. Test and save the connection.
-3. Create or unlock the single Subweazl vault.
-4. Land on Home, with jump-back-in entries and discovery shortcuts.
+Your Subsonic credentials drop into `~/.config/subweazl/config.json`. The encrypted vault lives under your data directory as `vault.sqlite3`. Forget the password, and you lose your mixtapes. Back up your metal.
 
-Subsonic credentials are stored in `~/.config/subweazl/config.json`. The app
-state file is `~/.config/subweazl/state.json`. The encrypted vault lives under
-Subweazl's data directory as `vault.sqlite3`.
-
-For scripted runs, use environment variables:
+Want to script the connection? Environment variables override the config file entirely:
 
 ```sh
 export SUBWEAZL_SERVER="<server-url>"
@@ -79,76 +62,72 @@ export SUBWEAZL_USER="<username>"
 export SUBWEAZL_PASSWORD="<password>"
 ```
 
-## Optional LLM Curator
+## Tactical AI (The Curator)
 
-AI is disabled until you explicitly configure it. Subweazl does not ship with a
-provider, model, endpoint, or server default.
+AI is a weapon, not a default. Subweazl does not ship with a provider, model, or endpoint. The feature is completely dead until you explicitly arm it.
 
-Interactive setup:
+Jack in your local provider:
 
 ```sh
 subweazl --configure-llm
 ```
 
-The setup asks for a provider label, base URL, chat completion path, optional
-model-list path, model name, context window, and optional API key. Blank provider
-label disables AI.
+The setup demands your provider label, base URL, and model details. Blanking the provider disables the AI entirely.
 
-The curator only receives vaulted cache candidates and summary context. It must
-return cached track IDs, and Subweazl validates every returned ID before building
-a queue. Invented or unknown IDs are rejected. Run metadata is stored encrypted
-in the vault.
+**The Sandbox:** The curator only receives vaulted cache candidates and summary context. It must return cached track IDs. Subweazl validates every returned ID before building the queue. If the model hallucinates an invented or unknown ID, we reject it. Run metadata is stored encrypted in the vault. Zero algorithmic sludge.
 
-## Daily Controls
+## Hardware Interrupts
 
-Network and discovery:
+Mouse clicks are dead here. The BBS relies on hotkeys.
 
-- `h`: home / jump back in
-- `1`: newest albums
-- `2`: server playlists
-- `3`: random albums
-- `4`: queue
-- `5`: private vaulted playlists
-- `y`: sync vaulted Subsonic metadata cache
-- `g`: generate deterministic queue from vaulted cache
-- `G`: curate a queue with the configured optional LLM
-- `/`: search cached tracks first, then fall back to server search
+**The Network & Discovery**
 
-Navigation:
+* `h`: Home / jump back in
+* `1`: Newest albums
+* `2`: Server playlists
+* `3`: Random albums
+* `4`: The Queue
+* `5`: Private vaulted playlists
+* `y`: Sync vaulted Subsonic metadata cache
+* `g`: Forge a deterministic queue from the vaulted cache
+* `G`: Command the local LLM to curate a queue
+* `/`: Search cached tracks first, fallback to the server
 
-- `enter`: open an album or playlist, play a track, jump to a queue row, or load a private playlist
-- `left`: go back
-- `esc`: cancel search or go back
-- `q` / `ctrl+c`: quit
+**Navigation & Execution**
 
-Playback and queue:
+* `enter`: Crack open an album, fire a track, jump to a queue row, or load a private playlist
+* `left`: Eject to the previous section
+* `esc`: Kill the search prompt
+* `q` / `ctrl+c`: Kill the app entirely
 
-- `space`: pause/resume
-- `n` / `p`: next/previous queue track
-- `a`: enqueue the selected or playing track
-- `w`: save the current queue as a private playlist
-- `x`: remove the selected queue row
-- `delete` / `backspace`: delete the selected private playlist
-- `c`: clear the queue
-- `u` / `d`: move the selected queue row up/down
-- `s`: stop playback
-- `r`: create a saved server station playlist from the active track
-- `ctrl+r`: rename the selected server playlist, current station, or private playlist
+**The Amp & Queue Desk**
 
-Setup:
+* `space`: Pause/resume the audio
+* `s`: Kill the playback process
+* `n` / `p`: Next/previous track in the queue
+* `a`: Enqueue the selected or active track
+* `w`: Forge the current queue into a private vaulted playlist
+* `x`: Nuke the selected queue row
+* `delete` / `backspace`: Burn the selected private playlist
+* `c`: Clear the queue entirely
+* `u` / `d`: Move the selected queue row up/down
+* `r`: Forge a saved server station playlist from the active track
+* `ctrl+r`: Rename the selected server playlist, current station, or private playlist
 
-- `tab`: cycle input fields
-- `enter`: test and save the connection
-- `ctrl+s`: force save the connection payload
+**The Setup Deck**
 
-## Vaulted Features
+* `tab`: Cycle input fields
+* `enter`: Test and save the connection
+* `ctrl+s`: Force save the connection payload
 
-- Home restores useful private state after unlock.
-- Play history is private and vaulted.
-- Queue snapshots survive restart.
-- Private playlists are local-only and do not mutate the Subsonic server.
-- Cache sync is manual, encrypted, and used for fast search and recommendations.
-- Deterministic recommendations never require AI.
-- Optional LLM recommendations are validated against cached Subsonic track IDs.
+## The Vaulted State
+
+The local vault is not just a database; it is the entire memory of your session.
+
+* Home restores useful private state the second you unlock.
+* Play history stays private and never hits the server.
+* Queue snapshots survive a hard restart.
+* Private playlists stay local—they do not mutate your Subsonic server.
+* Cache sync is manual and encrypted, explicitly used for high-speed local searches and local curation.
 
 Weaz the juice.
