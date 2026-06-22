@@ -30,5 +30,5 @@ func (m Model) appHeader(width int) string {
 }
 
 func (m Model) canShowLogo(width int) bool {
-	return width >= maxLineWidth(logo) && m.height >= 34
+	return width >= maxLineWidth(logo) && m.height >= 44
 }
