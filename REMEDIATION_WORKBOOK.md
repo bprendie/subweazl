@@ -182,8 +182,8 @@ Completion loop:
 Standard verification commands:
 
 ```sh
-GOCACHE=/home/bobp/Code/weazlstream/.gocache GOMODCACHE=/home/bobp/Code/weazlstream/.gomodcache go test ./...
-GOCACHE=/home/bobp/Code/weazlstream/.gocache GOMODCACHE=/home/bobp/Code/weazlstream/.gomodcache go build -buildvcs=false -o /tmp/subweazl ./cmd/subweazl
+GOCACHE=/home/bobp/Code/subweazl/.gocache GOMODCACHE=/home/bobp/Code/subweazl/.gomodcache go test ./...
+GOCACHE=/home/bobp/Code/subweazl/.gocache GOMODCACHE=/home/bobp/Code/subweazl/.gomodcache go build -buildvcs=false -o /tmp/subweazl ./cmd/subweazl
 SUBWEAZL_SKIP_LAUNCH=1 ./scripts/install.sh
 ```
 
