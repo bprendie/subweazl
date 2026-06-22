@@ -1,24 +1,22 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bprendie/subweazl/internal/config"
 )
 
-func TestMainHeaderUsesCompactHeaderAtNormalHeights(t *testing.T) {
-	m := headerTestModel(t, 100, 40)
-	got := m.appHeader(90)
-	if got != "" && got[0] == '\n' {
-		t.Fatal("main header should stay compact at normal terminal heights")
-	}
-}
-
-func TestFullLogoHeaderStartsWithSafeBlankLineWhenTall(t *testing.T) {
-	m := headerTestModel(t, 100, 46)
-	got := m.appHeader(90)
-	if got == "" || got[0] != '\n' {
-		t.Fatal("full logo header should start with a safe blank line")
+func TestMainHeaderUsesCompactHeader(t *testing.T) {
+	for _, height := range []int{40, 46, 60} {
+		m := headerTestModel(t, 100, height)
+		got := m.appHeader(90)
+		if got != "" && got[0] == '\n' {
+			t.Fatalf("main header should stay compact at height %d", height)
+		}
+		if strings.Contains(got, ".________") {
+			t.Fatalf("main header should not render the full logo at height %d", height)
+		}
 	}
 }
 

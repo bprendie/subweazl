@@ -8,9 +8,6 @@ import (
 )
 
 func (m Model) appHeader(width int) string {
-	if m.canShowLogo(width) && !m.input.Focused() {
-		return "\n" + renderLogo(logo, width)
-	}
 	left := m.styles.header.Render("Subweazl")
 	section := lipgloss.NewStyle().Foreground(crushMint).Render(strings.ToUpper(m.list.Title))
 	right := m.styles.help.Render(ansi.Truncate(m.serverLabel(), max(8, width/3), "..."))
@@ -27,8 +24,4 @@ func (m Model) appHeader(width int) string {
 		style = m.styles.active
 	}
 	return style.Width(width).Height(1).Render(line)
-}
-
-func (m Model) canShowLogo(width int) bool {
-	return width >= maxLineWidth(logo) && m.height >= 44
 }
