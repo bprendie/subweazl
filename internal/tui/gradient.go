@@ -15,9 +15,15 @@ type rgb struct {
 }
 
 var logoStops = []rgb{
-	hexRGB(0xF3E600),
 	hexRGB(0xF7D774),
 	hexRGB(0xFFB84D),
+	hexRGB(0xFF7A1A),
+}
+
+var slashStops = []rgb{
+	hexRGB(0x7D56F4),
+	hexRGB(0xB245FF),
+	hexRGB(0xF25D94),
 }
 
 var trackStops = []rgb{
@@ -30,10 +36,9 @@ func renderLogo(s string, width int) string {
 	wordmark := gradientLogo(s)
 	logoWidth := maxLineWidth(s)
 	if width <= 0 || width < logoWidth+10 {
-		return wordmark
+		return "\n" + wordmark
 	}
 
-	fieldStyle := lipgloss.NewStyle().Foreground(crushPurple).Bold(true)
 	leftWidth := 6
 	gapWidth := 1
 	rightWidth := max(4, width-logoWidth-leftWidth-(gapWidth*2))
@@ -41,19 +46,19 @@ func renderLogo(s string, width int) string {
 	var out strings.Builder
 	for i, line := range lines {
 		right := max(1, rightWidth-i)
-		out.WriteString(fieldStyle.Render(strings.Repeat("╱", leftWidth)))
+		out.WriteString(gradientText(strings.Repeat("╱", leftWidth), slashStops))
 		out.WriteString(strings.Repeat(" ", gapWidth))
 		out.WriteString(line)
 		if pad := logoWidth - lipgloss.Width(line); pad > 0 {
 			out.WriteString(strings.Repeat(" ", pad))
 		}
 		out.WriteString(strings.Repeat(" ", gapWidth))
-		out.WriteString(fieldStyle.Render(strings.Repeat("╱", right)))
+		out.WriteString(gradientText(strings.Repeat("╱", right), slashStops))
 		if i < len(lines)-1 {
 			out.WriteByte('\n')
 		}
 	}
-	return out.String()
+	return "\n" + out.String()
 }
 
 func gradientLogo(s string) string {
