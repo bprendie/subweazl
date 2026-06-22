@@ -14,7 +14,7 @@ func (m Model) View() string {
 	if m.mode == modeSetup || m.mode == modeVault {
 		var b strings.Builder
 		if contentWidth >= maxLineWidth(logo) {
-			b.WriteString(renderLogo(logo, contentWidth))
+			b.WriteString("\n" + renderLogo(logo, contentWidth))
 		} else {
 			b.WriteString(m.styles.header.Render("Subweazl"))
 		}

@@ -1,6 +1,6 @@
 module github.com/bprendie/subweazl
 
-go 1.25
+go 1.25.0
 
 require (
 	github.com/charmbracelet/bubbles v0.21.0
@@ -10,6 +10,7 @@ require (
 	github.com/charmbracelet/x/ansi v0.10.1
 	github.com/mattn/go-sqlite3 v1.14.32
 	golang.org/x/crypto v0.43.0
+	golang.org/x/image v0.43.0
 )
 
 require (
@@ -30,5 +31,5 @@ require (
 	github.com/sahilm/fuzzy v0.1.1 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	golang.org/x/sys v0.37.0 // indirect
-	golang.org/x/text v0.30.0 // indirect
+	golang.org/x/text v0.38.0 // indirect
 )

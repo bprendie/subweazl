@@ -3,6 +3,8 @@ package tui
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	_ "image/gif"
@@ -12,6 +14,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	_ "golang.org/x/image/webp"
 
 	"github.com/bprendie/subweazl/internal/subsonic"
 )
@@ -28,12 +31,33 @@ func (m Model) loadCoverArt(id string) tea.Cmd {
 		if err != nil {
 			return coverArtMsg{id: id, err: err}
 		}
-		img, _, err := image.Decode(bytes.NewReader(data))
+		img, err := decodeCoverArt(data)
 		if err != nil {
 			return coverArtMsg{id: id, err: err}
 		}
 		return coverArtMsg{id: id, img: img}
 	}
+}
+
+func decodeCoverArt(data []byte) (image.Image, error) {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 {
+		return nil, errors.New("cover art unavailable")
+	}
+	if bytes.HasPrefix(trimmed, []byte("{")) || bytes.HasPrefix(trimmed, []byte("[")) {
+		return nil, errors.New("cover art unavailable")
+	}
+	if bytes.HasPrefix(trimmed, []byte("<")) {
+		return nil, errors.New("cover art unavailable")
+	}
+	img, format, err := image.Decode(bytes.NewReader(trimmed))
+	if err != nil {
+		return nil, fmt.Errorf("unsupported cover art format")
+	}
+	if format == "" {
+		return nil, errors.New("unsupported cover art format")
+	}
+	return img, nil
 }
 
 func coverArtID(track subsonic.Track) string {

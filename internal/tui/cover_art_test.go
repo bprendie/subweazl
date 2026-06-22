@@ -24,3 +24,20 @@ func TestCoverArtIDFallback(t *testing.T) {
 		})
 	}
 }
+
+func TestDecodeCoverArtRejectsAPIErrorPayloads(t *testing.T) {
+	for _, data := range [][]byte{
+		[]byte(`{"subsonic-response":{"status":"failed"}}`),
+		[]byte(`<subsonic-response status="failed"></subsonic-response>`),
+	} {
+		if _, err := decodeCoverArt(data); err == nil || err.Error() != "cover art unavailable" {
+			t.Fatalf("decodeCoverArt err = %v, want cover art unavailable", err)
+		}
+	}
+}
+
+func TestDecodeCoverArtRejectsUnknownFormatCleanly(t *testing.T) {
+	if _, err := decodeCoverArt([]byte("not an image")); err == nil || err.Error() != "unsupported cover art format" {
+		t.Fatalf("decodeCoverArt err = %v, want unsupported cover art format", err)
+	}
+}

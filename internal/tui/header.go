@@ -9,7 +9,7 @@ import (
 
 func (m Model) appHeader(width int) string {
 	if m.canShowLogo(width) && !m.input.Focused() {
-		return renderLogo(logo, width)
+		return "\n" + renderLogo(logo, width)
 	}
 	left := m.styles.header.Render("Subweazl")
 	section := lipgloss.NewStyle().Foreground(crushMint).Render(strings.ToUpper(m.list.Title))
