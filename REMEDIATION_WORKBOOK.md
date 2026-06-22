@@ -386,7 +386,7 @@ Completion notes:
 
 ### Phase 4. Queue Core
 
-Status: pending.
+Status: complete.
 
 Goal: replace single-track-only behavior with a real queue model suitable for
 album, playlist, and search-result playback.
@@ -413,6 +413,26 @@ Exit criteria:
 - Next/previous are reliable.
 - Queue state can be restored after app restart when vault is unlocked.
 - Verification/build/install/smoke loop passes.
+
+Completion notes:
+
+- Added a focused `internal/playqueue` model for queue current index, next,
+  previous, append, remove, clear, reorder, and snapshot restore.
+- Added encrypted single-row queue snapshot persistence in the private vault.
+- Added queue view on `4` plus queue controls for enqueue, next, previous,
+  remove, clear, and move up/down.
+- Selecting a song from album, playlist, station, or search results now builds a
+  queue context around that list for continuous playback.
+- The home `Last queue` action now opens the restored queue view.
+- Queue state restores after vault unlock.
+- Added queue model, vault persistence, and TUI queue tests.
+- `go test ./...` passed with project-local caches.
+- `go build -buildvcs=false -o /tmp/subweazl ./cmd/subweazl` passed.
+- `SUBWEAZL_SKIP_LAUNCH=1 ./scripts/install.sh` installed
+  `/home/bobp/.subweazl/bin/subweazl`.
+- Installed-binary smoke test used temporary config/data paths, created a vault,
+  loaded newest albums, opened an album, enqueued a track, opened queue view,
+  and verified a non-plaintext queue snapshot row in the temp vault.
 
 ### Phase 5. Private Playlists And Queue-To-Playlist
 

@@ -144,6 +144,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 		m.clearNav()
 		m.beginSearch("loading random albums")
 		return m, m.loadRandomAlbums()
+	case "4":
+		m.showQueue()
+		return m, noop
 	case "/":
 		m.pushNav()
 		m.mode = modeSearch
@@ -152,6 +155,20 @@ func (m Model) handleKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 		return m, noop
 	case "enter":
 		return m.handleEnter()
+	case "n":
+		return m.playNext()
+	case "p":
+		return m.playPrevious()
+	case "a":
+		return m.enqueueSelected()
+	case "x":
+		return m.removeQueueSelection()
+	case "c":
+		return m.clearQueue()
+	case "u":
+		return m.moveQueueSelection(-1)
+	case "d":
+		return m.moveQueueSelection(1)
 	case "r":
 		return m.createStation()
 	case "ctrl+r":
@@ -198,9 +215,10 @@ func (m Model) handleEnter() (Model, tea.Cmd) {
 			m.pushNav()
 			m.beginSearch("loading playlist")
 			return m, m.loadPlaylist(it.playlist.ID)
+		case "song", "queue":
+			return m.playSelectedTrack(it)
 		default:
-			cmd := m.play(it.track)
-			return m, cmd
+			return m, nil
 		}
 	}
 	return m, nil
@@ -246,7 +264,7 @@ func (m Model) startRename() (Model, tea.Cmd) {
 
 func (m Model) selectedTrack() (subsonic.Track, bool) {
 	it, ok := m.list.SelectedItem().(item)
-	if !ok || it.kind != "song" {
+	if !ok || (it.kind != "song" && it.kind != "queue") {
 		return subsonic.Track{}, false
 	}
 	return it.track, true

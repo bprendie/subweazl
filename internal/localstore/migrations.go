@@ -53,6 +53,11 @@ func (s *Store) Migrate() error {
 			created_at datetime not null default current_timestamp,
 			primary key (playlist_id, position)
 		)`,
+		`create table if not exists queue_snapshot (
+			id integer primary key check (id = 1),
+			payload text not null,
+			updated_at datetime not null default current_timestamp
+		)`,
 		`create table if not exists play_history (
 			id integer primary key autoincrement,
 			source text not null check (source in ('local', 'subsonic')),

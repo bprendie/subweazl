@@ -16,7 +16,7 @@ const (
 	homeActionPlaylists    = "playlists"
 	homeActionRandom       = "random"
 	homeActionSearch       = "search"
-	homeActionQueueSoon    = "queue-soon"
+	homeActionQueue        = "queue"
 	homeActionPlaylistSoon = "playlist-soon"
 )
 
@@ -49,7 +49,7 @@ func (m Model) homeItems() []list.Item {
 		item{kind: "home", title: "Playlists", desc: "browse server playlists", action: homeActionPlaylists},
 		item{kind: "home", title: "Random albums", desc: "shake loose a server discovery path", action: homeActionRandom},
 		item{kind: "home", title: "Search", desc: "find tracks by song, artist, or album", action: homeActionSearch},
-		item{kind: "home", title: "Last queue", desc: "queue restore lands in Phase 4", action: homeActionQueueSoon},
+		item{kind: "home", title: "Last queue", desc: "restore or inspect the private queue", action: homeActionQueue},
 		item{kind: "home", title: "Private playlists", desc: "vaulted playlists land in Phase 5", action: homeActionPlaylistSoon},
 	)
 	return items
@@ -107,9 +107,8 @@ func (m Model) handleHomeAction(it item) (Model, tea.Cmd) {
 		m.status = "search server tracks"
 		m.err = ""
 		return m, noop
-	case homeActionQueueSoon:
-		m.status = "queue restore lands in Phase 4"
-		m.err = ""
+	case homeActionQueue:
+		m.showQueue()
 		return m, noop
 	case homeActionPlaylistSoon:
 		m.status = "private playlists land in Phase 5"

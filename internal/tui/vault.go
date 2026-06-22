@@ -134,6 +134,7 @@ func (m Model) submitVault() (Model, tea.Cmd) {
 		m.err = err.Error()
 		return m, noop
 	}
+	m.restoreQueueSnapshot()
 	m.showHome()
 	m.status = "private vault unlocked"
 	return m, noop

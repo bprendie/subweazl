@@ -35,6 +35,7 @@ func TestMigrateCreatesLocalLibrarySchema(t *testing.T) {
 		"artists",
 		"local_playlists",
 		"local_playlist_tracks",
+		"queue_snapshot",
 		"play_history",
 		"ratings",
 		"station_recipes",

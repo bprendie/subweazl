@@ -20,6 +20,7 @@ func (m Model) sidebar(width, height int) string {
 		{"1", "Newest albums", modeNewest},
 		{"2", "Playlists", modePlaylists},
 		{"3", "Random albums", modeRandomAlbums},
+		{"4", "Queue", modeQueue},
 		{"/", "Song search", modeSearch},
 	}
 	var b strings.Builder
@@ -65,6 +66,8 @@ func (m Model) navEntryActive(entry mode) bool {
 		return m.mode == modePlaylists || m.mode == modeStation
 	case modeSearch:
 		return m.mode == modeSearch
+	case modeQueue:
+		return m.mode == modeQueue
 	default:
 		return m.mode == entry
 	}

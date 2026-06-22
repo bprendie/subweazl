@@ -101,17 +101,23 @@ The Network:
 - `1`: newest albums (Subsonic/Navidrome)
 - `2`: playlists (Subsonic/Navidrome)
 - `3`: random albums (Subsonic/Navidrome)
+- `4`: queue view
 - `/`: search the server for tracks
 
 Navigation And Execution:
 
-- `enter`: crack open an album/playlist, or fire the selected track
+- `enter`: crack open an album/playlist, fire the selected track, or jump to a queue row
 - `left`: eject to the previous section
 - `esc`: kill the search prompt
 
 The Amp:
 
 - `space`: pause/resume the audio
+- `n` / `p`: next/previous queue track
+- `a`: enqueue the selected or playing track
+- `x`: remove the selected queue row
+- `c`: clear the queue
+- `u` / `d`: move the selected queue row up/down
 - `s`: kill the playback process
 - `r`: forge a saved station playlist from the active track
 - `ctrl+r`: rename the selected playlist or current station

@@ -9,6 +9,7 @@ import (
 	"github.com/bprendie/subweazl/internal/config"
 	"github.com/bprendie/subweazl/internal/localstore"
 	"github.com/bprendie/subweazl/internal/player"
+	"github.com/bprendie/subweazl/internal/playqueue"
 	"github.com/bprendie/subweazl/internal/state"
 	"github.com/bprendie/subweazl/internal/subsonic"
 	"github.com/charmbracelet/bubbles/list"
@@ -28,6 +29,7 @@ const (
 	modePlaylists
 	modeTracks
 	modeSearch
+	modeQueue
 	modeStation
 	modeLastPlayed
 	modeSetup
@@ -59,6 +61,7 @@ type Model struct {
 	searching  bool
 	playing    *subsonic.Track
 	playSource string
+	queue      playqueue.Queue
 	paused     bool
 	trackTitle string
 	titlePoll  time.Time
@@ -75,13 +78,14 @@ type Model struct {
 }
 
 type item struct {
-	kind     string
-	title    string
-	desc     string
-	track    subsonic.Track
-	album    subsonic.Album
-	playlist subsonic.Playlist
-	action   string
+	kind       string
+	title      string
+	desc       string
+	track      subsonic.Track
+	album      subsonic.Album
+	playlist   subsonic.Playlist
+	action     string
+	queueIndex int
 }
 
 type navSnapshot struct {
@@ -97,7 +101,7 @@ func (i item) Title() string {
 		return i.album.Name
 	case "playlist":
 		return i.playlist.Name
-	case "empty", "home":
+	case "empty", "home", "queue":
 		return i.title
 	default:
 		return i.track.Title
@@ -110,7 +114,7 @@ func (i item) Description() string {
 		return fmt.Sprintf("%s  %d", i.album.Artist, i.album.Year)
 	case "playlist":
 		return fmt.Sprintf("%d tracks", i.playlist.Count)
-	case "empty", "home":
+	case "empty", "home", "queue":
 		return i.desc
 	default:
 		return fmt.Sprintf("%s  %s", i.track.Artist, i.track.Album)
@@ -175,6 +179,7 @@ func New(cfg config.Config) Model {
 		status:     "ready",
 		appState:   appState,
 		coverCache: map[string]image.Image{},
+		queue:      playqueue.New(),
 		visualizer: NewVisualizer(harmonica.FPS(30)),
 	}
 	if stateErr != nil {
@@ -191,6 +196,7 @@ func New(cfg config.Config) Model {
 		m.err = err.Error()
 	}
 	if m.mode != modeVault {
+		m.restoreQueueSnapshot()
 		m.showHome()
 	}
 	m.refreshTitle()
@@ -255,6 +261,8 @@ func (m *Model) refreshTitle() {
 		m.list.Title = "tracks"
 	case modeSearch:
 		m.list.Title = "search results"
+	case modeQueue:
+		m.list.Title = "queue"
 	case modeStation:
 		m.list.Title = "station"
 	case modeLastPlayed:
