@@ -32,6 +32,6 @@ func (m Model) setupPanel(width int) string {
 		b.WriteString("\n")
 	}
 	b.WriteString("\n")
-	b.WriteString(m.styles.help.Render(ansi.Truncate("private vault setup comes next", max(24, width), "...")))
+	b.WriteString(m.styles.help.Render(ansi.Truncate("private vault setup follows connection", max(24, width), "...")))
 	return b.String()
 }

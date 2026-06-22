@@ -7,6 +7,7 @@ import (
 
 	"github.com/bprendie/subweazl/internal/audio"
 	"github.com/bprendie/subweazl/internal/config"
+	"github.com/bprendie/subweazl/internal/localstore"
 	"github.com/bprendie/subweazl/internal/player"
 	"github.com/bprendie/subweazl/internal/state"
 	"github.com/bprendie/subweazl/internal/subsonic"
@@ -29,6 +30,7 @@ const (
 	modeStation
 	modeLastPlayed
 	modeSetup
+	modeVault
 )
 
 const searchPrompt = "stream > "
@@ -43,6 +45,10 @@ type Model struct {
 	input      textinput.Model
 	setup      []textinput.Model
 	setupFocus int
+	vaultInput textinput.Model
+	vaultStore *localstore.Store
+	vaultStage string
+	vaultPass  string
 	spinner    spinner.Model
 	mode       mode
 	nav        []navSnapshot
@@ -145,6 +151,10 @@ func New(cfg config.Config) Model {
 	input.Prompt = searchPrompt
 	input.CharLimit = 240
 	input.Width = 42
+	vaultInput := textinput.New()
+	vaultInput.EchoMode = textinput.EchoPassword
+	vaultInput.CharLimit = 240
+	vaultInput.Width = 42
 	l := list.New(nil, delegate{styles: newStyles()}, 80, 20)
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
@@ -157,6 +167,7 @@ func New(cfg config.Config) Model {
 		player:     player.New(),
 		list:       l,
 		input:      input,
+		vaultInput: vaultInput,
 		spinner:    newSpinner(),
 		mode:       modeNewest,
 		status:     "ready",
@@ -171,14 +182,21 @@ func New(cfg config.Config) Model {
 	if !cfg.Ready() {
 		m.mode = modeSetup
 		m.status = "connect a Subsonic server"
+		m.refreshTitle()
+		return m
 	}
-	m.restoreLastPlayed()
+	if err := m.prepareVault(); err != nil {
+		m.err = err.Error()
+	}
+	if m.mode != modeVault {
+		m.restoreLastPlayed()
+	}
 	m.refreshTitle()
 	return m
 }
 
 func (m Model) Init() tea.Cmd {
-	if !m.cfg.Ready() {
+	if !m.cfg.Ready() || m.mode == modeVault {
 		return tick()
 	}
 	if m.hasRestoredLastPlayed() {
@@ -227,7 +245,7 @@ func newSpinner() spinner.Model {
 }
 
 func (m *Model) restoreLastPlayed() {
-	if m.mode == modeSetup {
+	if m.mode == modeSetup || m.mode == modeVault {
 		return
 	}
 	if m.appState.LastPlayed == nil {
@@ -263,6 +281,8 @@ func (m *Model) refreshTitle() {
 		m.list.Title = "last played"
 	case modeSetup:
 		m.list.Title = "setup"
+	case modeVault:
+		m.list.Title = "private vault"
 	default:
 		m.list.Title = "newest albums"
 	}

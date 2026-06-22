@@ -277,7 +277,7 @@ Completion notes:
 
 ### Phase 2. Single Vault Onboarding
 
-Status: pending.
+Status: complete.
 
 Goal: make a single private app vault integral to onboarding, using the
 WeazlWrite flow as the reference but without multi-vault selection.
@@ -308,6 +308,28 @@ Exit criteria:
 - Bad vault password gives clear error and retry path.
 - App reaches a usable Subsonic home after vault unlock.
 - Verification/build/install/smoke loop passes.
+
+Completion notes:
+
+- Added a dedicated `modeVault` onboarding gate after Subsonic config is ready.
+- Added single private vault create, confirm, unlock, retry, and quit handling.
+- Added dedicated vault view explaining private play history, queues, private
+  playlists, synced server cache, and recommendation context.
+- Renamed the default private store file to `vault.sqlite3`.
+- Updated the vault key prefix to `subweazl/private-vault/`.
+- Existing ready config with no vault now opens the vault setup screen before
+  loading server content.
+- Existing vault opens in unlock mode; wrong password reports a recoverable
+  error.
+- Added focused TUI tests for vault create/unlock, mismatch retry, existing
+  vault unlock, quit cleanup, and vault view rendering.
+- `go test ./...` passed with project-local caches.
+- `go build -buildvcs=false -o /tmp/subweazl ./cmd/subweazl` passed.
+- `SUBWEAZL_SKIP_LAUNCH=1 ./scripts/install.sh` installed
+  `/home/bobp/.subweazl/bin/subweazl`.
+- Installed binary smoke test used temporary config/data paths, created a vault,
+  unlocked with the provided smoke-test password, and loaded 40 newest albums
+  from the provided Subsonic server.
 
 ### Phase 3. Jump-Back-In Home And Discovery Shell
 

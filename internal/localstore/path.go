@@ -13,7 +13,7 @@ func Path() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "library.sqlite3"), nil
+	return filepath.Join(dir, "vault.sqlite3"), nil
 }
 
 func DataDir() (string, error) {

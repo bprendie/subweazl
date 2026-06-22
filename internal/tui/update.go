@@ -61,9 +61,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = ""
 		m.searching = false
 		if msg.cfg.Ready() {
-			m.mode = modeNewest
+			if err := m.prepareVault(); err != nil {
+				m.err = err.Error()
+			}
 			m.refreshTitle()
-			return m, tea.Batch(tick(), m.loadNewest())
+			return m, tick()
 		}
 	case coverArtMsg:
 		if msg.id != m.coverID {
@@ -102,10 +104,14 @@ func (m Model) handleKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c":
 		m.stop()
+		m.closeVaultStore()
 		return m, tea.Quit
 	}
 	if m.mode == modeSetup {
 		return m.handleSetupKey(msg)
+	}
+	if m.mode == modeVault {
+		return m.handleVaultKey(msg)
 	}
 	if m.input.Focused() {
 		switch msg.String() {
@@ -121,6 +127,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 	switch msg.String() {
 	case "q":
 		m.stop()
+		m.closeVaultStore()
 		return m, tea.Quit
 	case "1":
 		m.clearNav()

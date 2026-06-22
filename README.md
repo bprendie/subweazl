@@ -56,8 +56,9 @@ subweazl
 ```
 
 On first boot, Subweazl opens a connection setup screen. Enter your
-Navidrome/Subsonic server coordinates and connect. Private vault setup is the
-next remediation target for personal play history, queues, and playlists.
+Navidrome/Subsonic server coordinates and connect. After the server is saved,
+Subweazl requires a single private vault for personal play history, queues,
+private playlists, synced server cache, and recommendation context.
 
 We drop the config payload into `~/.config/subweazl/config.json`. We also
 cache your last played track in `~/.config/subweazl/state.json` so you boot

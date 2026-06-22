@@ -14,7 +14,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const keyPrefix = "subweazl/local-library/"
+const keyPrefix = "subweazl/private-vault/"
 
 var errLocked = errors.New("private vault is locked")
 

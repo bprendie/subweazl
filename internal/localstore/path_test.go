@@ -13,7 +13,7 @@ func TestPathUsesXDGDataHome(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Path: %v", err)
 	}
-	want := filepath.Join(dataHome, "subweazl", "library.sqlite3")
+	want := filepath.Join(dataHome, "subweazl", "vault.sqlite3")
 	if got != want {
 		t.Fatalf("Path() = %q, want %q", got, want)
 	}
@@ -26,7 +26,7 @@ func TestPathUsesOverride(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Path: %v", err)
 	}
-	want := filepath.Join(dataHome, "subweazl", "library.sqlite3")
+	want := filepath.Join(dataHome, "subweazl", "vault.sqlite3")
 	if got != want {
 		t.Fatalf("Path() = %q, want %q", got, want)
 	}
