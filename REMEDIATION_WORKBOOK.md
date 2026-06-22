@@ -529,7 +529,7 @@ Completion notes:
 
 ### Phase 7. Recommendation Foundation
 
-Status: pending.
+Status: complete.
 
 Goal: build deterministic playlist/queue generation from vaulted cache and
 history before involving an LLM.
@@ -552,6 +552,24 @@ Exit criteria:
 - User can generate a useful queue without LLM.
 - Generated queue references only valid cached/server track IDs.
 - Verification/build/install/smoke loop passes.
+
+Completion notes:
+
+- Added deterministic cache-only recommendation generation in `internal/recommend`.
+- Added vaulted cached-track retrieval, recent-history exclusion, and encrypted
+  recommendation recipe storage.
+- Added `g` to generate a queue from selected, playing, or last-played seed
+  context, falling back to deterministic unseen cached tracks.
+- Generator supports same artist, same genre, nearby year, starred, random unseen,
+  and recent-play avoidance rules.
+- Generated queues are built only from cached Subsonic track IDs and persisted as
+  queue snapshots.
+- Added localstore, generator, and TUI workflow tests.
+- Verified with `go test ./...` using project-local caches.
+- Verified production build with `go build -buildvcs=false -o /tmp/subweazl ./cmd/subweazl`.
+- Rebuilt the installed binary with `SUBWEAZL_SKIP_LAUNCH=1 ./scripts/install.sh`.
+- Smoke-tested the installed binary with a temp config/data home, created/unlocked a vault, and confirmed the Phase 7 `g` generate control appears after unlock. Full queue generation is covered by automated tests to avoid forcing live cache sync during smoke.
+
 
 ### Phase 8. LLM Curator
 

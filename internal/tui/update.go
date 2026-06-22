@@ -158,6 +158,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 	case "y":
 		m.beginSearch("syncing Subsonic cache")
 		return m, m.syncSubsonicCache()
+	case "g":
+		return m.generateRecommendedQueue()
 	case "/":
 		m.pushNav()
 		m.mode = modeSearch

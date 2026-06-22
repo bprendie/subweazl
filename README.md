@@ -104,6 +104,7 @@ The Network:
 - `4`: queue view
 - `5`: private vaulted playlists
 - `y`: sync vaulted Subsonic metadata cache
+- `g`: generate deterministic queue from vaulted cache
 - `/`: search cached tracks first, then fall back to server search
 
 Navigation And Execution:
