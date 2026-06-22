@@ -184,7 +184,7 @@ Standard verification commands:
 ```sh
 GOCACHE=/home/bobp/Code/subweazl/.gocache GOMODCACHE=/home/bobp/Code/subweazl/.gomodcache go test ./...
 GOCACHE=/home/bobp/Code/subweazl/.gocache GOMODCACHE=/home/bobp/Code/subweazl/.gomodcache go build -buildvcs=false -o /tmp/subweazl ./cmd/subweazl
-SUBWEAZL_SKIP_LAUNCH=1 ./scripts/install.sh
+SUBWEAZL_SKIP_LAUNCH=1 SUBWEAZL_SKIP_LLM_SETUP=1 ./scripts/install.sh
 ```
 
 Smoke tests should use the installed `subweazl` binary, not only `go run`.
@@ -622,7 +622,7 @@ Completion notes:
 
 ### Phase 9. Polish, Docs, And Install
 
-Status: pending.
+Status: complete.
 
 Goal: make the remediated app coherent as a daily-driver release.
 
@@ -641,9 +641,23 @@ Exit criteria:
 - All phases marked accurately.
 - Verification/build/install/smoke loop passes.
 
+Completion notes:
+
+- README now matches the current Subsonic-only daily-driver flow: staged setup, required single vault, home, queue, private playlists, cache sync, deterministic generation, and optional configured LLM curation.
+- Audited help menu and sidebar labels for current controls, including `g` deterministic generation and `G` LLM curation.
+- Audited installer naming and paths; Linux install writes to `/home/bobp/.subweazl/bin/subweazl` in local smoke and supports noninteractive LLM setup skipping.
+- Removed stale remaining Phase 8 decisions and recorded that no remediation-phase decisions remain open.
+- Verified no private endpoints, smoke credentials, hardcoded provider names, old project names, or stale no-database claims remain in the repo scan.
+- Verified all Go files remain under the 400 LOC rule; largest file is `internal/subsonic/client.go` at 374 lines.
+- Verified with `go test ./...` using project-local caches.
+- Verified production build with `go build -buildvcs=false -o /tmp/subweazl ./cmd/subweazl`.
+- Rebuilt the installed binary with `SUBWEAZL_SKIP_LAUNCH=1 SUBWEAZL_SKIP_LLM_SETUP=1 ./scripts/install.sh`.
+- Smoke-tested installed `--configure-llm` with isolated temp config and placeholder local values; verified normalized LLM config was written without private endpoints.
+- Smoke-tested installed TUI launch with isolated config/data paths to the expected timeout.
+
 ## Resolved Decisions
 
-These decisions have already been implemented through Phases 1-7 and should not
+These decisions have already been implemented through Phases 1-8 and should not
 be reopened unless a later phase exposes a concrete problem.
 
 ### Product Scope
@@ -670,7 +684,7 @@ be reopened unless a later phase exposes a concrete problem.
 - It shows jump-back-in entries when vaulted state exists and useful discovery
   shortcuts when it does not.
 - Direct keys exist for home, discovery, queue, private playlists, cache sync,
-  deterministic generation, and search.
+  deterministic generation, optional LLM curation, and search.
 
 ### Queue
 
@@ -692,26 +706,14 @@ be reopened unless a later phase exposes a concrete problem.
 - Generated queues only use cached Subsonic track IDs.
 - Recent play history is used to avoid stale recommendations.
 - Recipe metadata is stored encrypted in the vault.
+- Optional LLM curation is disabled until explicitly configured.
+- LLM provider label, URL, model, paths, context window, and API key are user-supplied; no provider, endpoint, or model defaults are hardcoded.
+- LLM results are validated against cached Subsonic track IDs before queue creation.
+- LLM recommendation run metadata is stored encrypted in the vault.
 
 ## Remaining Decisions
 
-### Phase 8: LLM Curator
-
-- Exact provider config shape: provider name, base URL, model, context window,
-  and any optional API key handling.
-- Whether LLM setup belongs only in the installer/config flow, also in first-run
-  TUI setup, or both.
-- How much vaulted listening history is summarized into prompts.
-- How many candidate tracks are sent per request and what metadata fields are
-  allowed.
-- How the UI presents rejected model results, empty valid result sets, and
-  fallback to deterministic generation.
-- Whether LLM output creates a queue only, a private playlist, or lets the user
-  choose.
-
-### Phase 9: Polish And Release
-
-- Final README tone and exact feature list after LLM support lands.
-- Final install-script prompts and upgrade behavior for existing configs.
-- Final smoke-test checklist that avoids committing private endpoints,
-  usernames, passwords, or model URLs.
+No remediation-phase decisions remain open. Future post-remediation hardening can
+consider moving Subsonic credentials into the vault, adding Windows installer LLM
+setup parity, server playlist export for private playlists, and richer LLM prompt
+controls after daily-driver behavior has settled.
