@@ -114,6 +114,21 @@ add_to_path() {
   fi
 }
 
+configure_llm() {
+  if [[ "${SUBWEAZL_SKIP_LLM_SETUP:-}" == "1" ]]; then
+    return
+  fi
+  if [[ ! -t 0 ]]; then
+    return
+  fi
+  echo ""
+  read -r -p "Configure optional LLM curator now? [y/N] " answer
+  case "$answer" in
+    y|Y|yes|YES) "$BIN_PATH" --configure-llm ;;
+    *) echo "Skipping LLM curator setup." ;;
+  esac
+}
+
 check_go_version
 check_mpv
 check_ffmpeg
@@ -128,6 +143,7 @@ echo "Building $APP_NAME..."
 
 chmod 0755 "$BIN_PATH"
 add_to_path
+configure_llm
 
 echo "Installed $APP_NAME to $BIN_PATH"
 echo "If your shell cannot find it yet, restart the shell or run:"

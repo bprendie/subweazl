@@ -58,7 +58,9 @@ subweazl
 On first boot, Subweazl opens a connection setup screen. Enter your
 Navidrome/Subsonic server coordinates and connect. After the server is saved,
 Subweazl requires a single private vault for personal play history, queues,
-private playlists, synced server cache, and recommendation context. After vault
+private playlists, synced server cache, and recommendation context. Optional LLM
+curation stays disabled until you configure a provider label, base URL, model,
+chat path, and context window locally. After vault
 unlock, Subweazl opens to a home screen for jumping back in or discovering
 server music quickly.
 
@@ -105,6 +107,7 @@ The Network:
 - `5`: private vaulted playlists
 - `y`: sync vaulted Subsonic metadata cache
 - `g`: generate deterministic queue from vaulted cache
+- `G`: curate a queue with the configured optional LLM
 - `/`: search cached tracks first, then fall back to server search
 
 Navigation And Execution:

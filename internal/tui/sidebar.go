@@ -25,6 +25,7 @@ func (m Model) sidebar(width, height int) string {
 		{"5", "Private playlists", modePrivatePlaylists},
 		{"y", "Sync cache", modeHome},
 		{"g", "Generate queue", modeQueue},
+		{"G", "LLM curate", modeQueue},
 		{"/", "Song search", modeSearch},
 	}
 	var b strings.Builder

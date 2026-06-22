@@ -26,6 +26,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.spinner, cmd = m.spinner.Update(msg)
 			cmds = append(cmds, cmd)
 		}
+	case llmQueueMsg:
+		m = m.applyLLMQueue(msg)
 	case cacheSyncMsg:
 		m.cacheStatus = msg.status
 		m.status = fmt.Sprintf("synced %d cached tracks", msg.tracks)
@@ -160,6 +162,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 		return m, m.syncSubsonicCache()
 	case "g":
 		return m.generateRecommendedQueue()
+	case "G":
+		return m.generateLLMQueue()
 	case "/":
 		m.pushNav()
 		m.mode = modeSearch

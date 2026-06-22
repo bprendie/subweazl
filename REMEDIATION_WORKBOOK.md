@@ -573,7 +573,7 @@ Completion notes:
 
 ### Phase 8. LLM Curator
 
-Status: pending.
+Status: complete.
 
 Goal: add optional LLM curation over known candidates without letting the model
 invent music.
@@ -603,6 +603,22 @@ Exit criteria:
 - Installer/setup can configure the provider, URL, model, and context window
   using the WeazlWrite-style flow.
 - Verification/build/install/smoke loop passes.
+
+Completion notes:
+
+- Added optional LLM config fields for user-supplied provider label, base URL, model, chat path, model-list path, context window, and API key. No provider, model, endpoint, or Subsonic server defaults are hardcoded.
+- Added `subweazl --configure-llm` for interactive local setup; blank provider label disables AI.
+- Updated the Linux installer to offer optional LLM setup during interactive installs while allowing noninteractive builds to skip it.
+- Added a generic configured-path LLM client and model-list helper.
+- Added LLM curator prompt construction from vaulted cached candidates, plus validation that dedupes IDs and rejects invented/unknown track IDs.
+- Added `G` in the TUI to curate a queue with the configured LLM; lowercase `g` remains deterministic cache generation.
+- Stored LLM recommendation run metadata encrypted in the vault `recommendation_runs` table.
+- Added config, LLM client, curator validation, localstore, and TUI workflow tests.
+- Verified with `go test ./...` using project-local caches.
+- Verified production build with `go build -buildvcs=false -o /tmp/subweazl ./cmd/subweazl`.
+- Rebuilt the installed binary with `SUBWEAZL_SKIP_LAUNCH=1 SUBWEAZL_SKIP_LLM_SETUP=1 ./scripts/install.sh`.
+- Smoke-tested installed `--configure-llm` with isolated temp config and placeholder local values; verified normalized LLM config was written without private endpoints.
+- Smoke-tested installed TUI launch with isolated config/data paths to the expected timeout.
 
 ### Phase 9. Polish, Docs, And Install
 
