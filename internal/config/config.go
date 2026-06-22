@@ -3,17 +3,15 @@ package config
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
 type Config struct {
-	Server            string   `json:"server"`
-	Username          string   `json:"username"`
-	Password          string   `json:"password"`
-	LocalMusicFolders []string `json:"local_music_folders,omitempty"`
+	Server   string `json:"server"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 func Load() (Config, error) {
@@ -68,26 +66,9 @@ func (c Config) Ready() bool {
 	return c.Server != "" && c.Username != "" && c.Password != ""
 }
 
-func (c Config) ValidateLocalMusicFolders() error {
-	for _, folder := range normalizeFolders(c.LocalMusicFolders) {
-		info, err := os.Stat(folder)
-		if err != nil {
-			return fmt.Errorf("local music folder %q: %w", folder, err)
-		}
-		if !info.IsDir() {
-			return fmt.Errorf("local music folder %q is not a directory", folder)
-		}
-		if _, err := os.ReadDir(folder); err != nil {
-			return fmt.Errorf("local music folder %q is not readable: %w", folder, err)
-		}
-	}
-	return nil
-}
-
 func (c *Config) normalize() {
 	c.Server = strings.TrimRight(strings.TrimSpace(c.Server), "/")
 	c.Username = strings.TrimSpace(c.Username)
-	c.LocalMusicFolders = normalizeFolders(c.LocalMusicFolders)
 }
 
 func (c *Config) applyEnv() {
@@ -118,37 +99,4 @@ func ensureConfigDir(dir string) error {
 		return err
 	}
 	return os.Chmod(dir, 0o700)
-}
-
-func normalizeFolders(folders []string) []string {
-	out := make([]string, 0, len(folders))
-	seen := map[string]bool{}
-	for _, folder := range folders {
-		folder = strings.TrimSpace(folder)
-		if folder == "" {
-			continue
-		}
-		folder = expandHome(folder)
-		folder = filepath.Clean(folder)
-		if seen[folder] {
-			continue
-		}
-		out = append(out, folder)
-		seen[folder] = true
-	}
-	return out
-}
-
-func expandHome(path string) string {
-	if path == "~" {
-		if home, err := os.UserHomeDir(); err == nil {
-			return home
-		}
-	}
-	if strings.HasPrefix(path, "~/") {
-		if home, err := os.UserHomeDir(); err == nil {
-			return filepath.Join(home, strings.TrimPrefix(path, "~/"))
-		}
-	}
-	return path
 }

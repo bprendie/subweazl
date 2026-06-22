@@ -26,9 +26,6 @@ func (m Model) back() (Model, tea.Cmd) {
 		return m, noop
 	}
 	if len(m.nav) == 0 {
-		if m.mode == modeLocal {
-			return m.openSubsonic()
-		}
 		if m.mode != modeNewest {
 			m.clearNav()
 			m.beginSearch("loading newest albums")

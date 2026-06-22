@@ -13,17 +13,6 @@ type helpAction struct {
 }
 
 func (m Model) helpMenu(width int) string {
-	if m.mode == modeSources {
-		return renderHelpMenu(width, [][]helpAction{
-			{{"1", "subsonic", crushMint}, {"2", "local", crushGold}, {"enter", "open", crushMint}},
-			{{"left", "back", muted}, {"q", "quit", muted}},
-		})
-	}
-	if m.mode == modeLocal {
-		return renderHelpMenu(width, [][]helpAction{
-			{{"left", "sources", muted}, {"q", "quit", muted}},
-		})
-	}
 	return renderHelpMenu(width, [][]helpAction{
 		{{"1", "newest", crushGold}, {"2", "playlists", crushPink}, {"3", "random", crushMint}, {"/", "search", crushPurple}},
 		{{"enter", "open/play", crushMint}, {"r", "station", crushPink}, {"ctrl+r", "rename", crushPurple}},

@@ -16,7 +16,7 @@ import (
 
 const keyPrefix = "subweazl/local-library/"
 
-var errLocked = errors.New("local library vault is locked")
+var errLocked = errors.New("private vault is locked")
 
 func (s *Store) HasVault() (bool, error) {
 	var count int
@@ -36,7 +36,7 @@ func (s *Store) CreateVault(password string) error {
 		return err
 	}
 	if has {
-		return errors.New("local library vault already exists")
+		return errors.New("private vault already exists")
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -55,7 +55,7 @@ func (s *Store) Unlock(password string) error {
 		return err
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
-		return errors.New("bad local library vault password")
+		return errors.New("bad private vault password")
 	}
 	s.unlockWith(password)
 	return nil

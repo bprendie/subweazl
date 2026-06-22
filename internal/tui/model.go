@@ -3,13 +3,10 @@ package tui
 import (
 	"fmt"
 	"image"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/bprendie/subweazl/internal/audio"
 	"github.com/bprendie/subweazl/internal/config"
-	"github.com/bprendie/subweazl/internal/localstore"
 	"github.com/bprendie/subweazl/internal/player"
 	"github.com/bprendie/subweazl/internal/state"
 	"github.com/bprendie/subweazl/internal/subsonic"
@@ -24,15 +21,13 @@ import (
 type mode int
 
 const (
-	modeSources mode = iota
-	modeNewest
+	modeNewest mode = iota
 	modeRandomAlbums
 	modePlaylists
 	modeTracks
 	modeSearch
 	modeStation
 	modeLastPlayed
-	modeLocal
 	modeSetup
 )
 
@@ -56,7 +51,6 @@ type Model struct {
 	err        string
 	searching  bool
 	playing    *subsonic.Track
-	localPlay  *localTrack
 	playSource string
 	paused     bool
 	trackTitle string
@@ -68,10 +62,6 @@ type Model struct {
 	energy     audio.Sample
 	renaming   *subsonic.Playlist
 	station    *subsonic.Playlist
-	localStore *localstore.Store
-	localVault string
-	localPass  string
-	localOpen  map[string]bool
 	width      int
 	height     int
 	visualizer Visualizer
@@ -84,28 +74,6 @@ type item struct {
 	track    subsonic.Track
 	album    subsonic.Album
 	playlist subsonic.Playlist
-	folder   localFolder
-	local    localTrack
-	action   string
-}
-
-type localFolder struct {
-	ID       string
-	Path     string
-	Status   string
-	Depth    int
-	Expanded bool
-	Tracks   int
-}
-
-type localTrack struct {
-	ID      string
-	Title   string
-	Artist  string
-	Album   string
-	Path    string
-	Dir     string
-	Missing bool
 }
 
 type navSnapshot struct {
@@ -121,18 +89,7 @@ func (i item) Title() string {
 		return i.album.Name
 	case "playlist":
 		return i.playlist.Name
-	case "local-folder":
-		return i.folder.Path
-	case "local-song":
-		if i.local.Title != "" {
-			return i.local.Title
-		}
-		name := filepath.Base(i.local.Path)
-		ext := filepath.Ext(name)
-		return strings.TrimSuffix(name, ext)
-	case "source", "empty":
-		return i.title
-	case "action":
+	case "empty":
 		return i.title
 	default:
 		return i.track.Title
@@ -145,13 +102,7 @@ func (i item) Description() string {
 		return fmt.Sprintf("%s  %d", i.album.Artist, i.album.Year)
 	case "playlist":
 		return fmt.Sprintf("%d tracks", i.playlist.Count)
-	case "local-folder":
-		return i.folder.Status
-	case "local-song":
-		return localTrackDescription(i.local)
-	case "source", "empty":
-		return i.desc
-	case "action":
+	case "empty":
 		return i.desc
 	default:
 		return fmt.Sprintf("%s  %s", i.track.Artist, i.track.Album)
@@ -188,12 +139,6 @@ type coverArtMsg struct {
 	err error
 }
 
-type localIndexedMsg struct {
-	folders int
-	indexed int
-	skipped int
-}
-
 func New(cfg config.Config) Model {
 	input := textinput.New()
 	input.Placeholder = "song, artist, or album"
@@ -217,7 +162,6 @@ func New(cfg config.Config) Model {
 		status:     "ready",
 		appState:   appState,
 		coverCache: map[string]image.Image{},
-		localOpen:  map[string]bool{},
 		visualizer: NewVisualizer(harmonica.FPS(30)),
 	}
 	if stateErr != nil {
@@ -226,7 +170,7 @@ func New(cfg config.Config) Model {
 	m.setup = newSetupInputs(cfg)
 	if !cfg.Ready() {
 		m.mode = modeSetup
-		m.status = "connect a Subsonic server or add local music folders"
+		m.status = "connect a Subsonic server"
 	}
 	m.restoreLastPlayed()
 	m.refreshTitle()
@@ -253,7 +197,6 @@ func newSetupInputs(cfg config.Config) []textinput.Model {
 		{"server", cfg.Server, "https://your-navidrome.example", 52},
 		{"username", cfg.Username, "subsonic username", 32},
 		{"password", cfg.Password, "subsonic password", 32},
-		{"folders", joinFolders(cfg.LocalMusicFolders), "/music, ~/Music", 52},
 	}
 	inputs := make([]textinput.Model, 0, len(fields))
 	for i, field := range fields {
@@ -318,27 +261,9 @@ func (m *Model) refreshTitle() {
 		m.list.Title = "station"
 	case modeLastPlayed:
 		m.list.Title = "last played"
-	case modeLocal:
-		m.list.Title = "local library"
 	case modeSetup:
 		m.list.Title = "setup"
-	case modeSources:
-		m.list.Title = "sources"
 	default:
 		m.list.Title = "newest albums"
 	}
-}
-
-func (m *Model) showSources() {
-	m.mode = modeSources
-	m.clearNav()
-	m.refreshTitle()
-	m.list.SetItems([]list.Item{
-		item{kind: "source", title: "Subsonic", desc: m.serverLabel()},
-		item{kind: "source", title: "Local", desc: m.localLabel()},
-	})
-	m.status = "choose a source"
-	m.err = ""
-	m.searching = false
-	m.input.Blur()
 }

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"github.com/bprendie/subweazl/internal/audio"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -78,3 +79,10 @@ func (m Model) updateFocused(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 func noop() tea.Msg { return nil }
+
+func (m *Model) resetInput() {
+	m.input.SetValue("")
+	m.input.Prompt = searchPrompt
+	m.input.EchoMode = textinput.EchoNormal
+	m.input.Blur()
+}

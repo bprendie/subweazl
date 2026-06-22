@@ -55,10 +55,9 @@ go run ./cmd/subweazl
 subweazl
 ```
 
-On first boot, Subweazl throws up a connection setup screen. Punch in your
-Navidrome/Subsonic server coordinates or register local music folders for the
-local-library path. Local mounts must actually be readable directories. Local
-folder indexing/playback is not wired yet; the app is Subsonic-first today.
+On first boot, Subweazl opens a connection setup screen. Enter your
+Navidrome/Subsonic server coordinates and connect. Private vault setup is the
+next remediation target for personal play history, queues, and playlists.
 
 We drop the config payload into `~/.config/subweazl/config.json`. We also
 cache your last played track in `~/.config/subweazl/state.json` so you boot
@@ -93,13 +92,12 @@ If Go can build Bubble Tea apps on your metal, it can build this.
 
 Mouse clicks are dead here. The BBS relies on hotkeys.
 
-The Network And Local Metal:
+The Network:
 
 - `1`: newest albums (Subsonic/Navidrome)
 - `2`: playlists (Subsonic/Navidrome)
 - `3`: random albums (Subsonic/Navidrome)
 - `/`: search the server for tracks
-- `l`: drop into the local library
 
 Navigation And Execution:
 

@@ -43,7 +43,7 @@ Keep Subweazl separate from WeazlTunes.
 - WeazlTunes remains a terminal radio tuner for SomaFM, Icecast/Xiph, pasted
   stream URLs, and eight preset slots.
 - Subweazl remains a terminal music-library client for Subsonic/Navidrome,
-  generated station playlists, album art, and future local folder playback.
+  generated station playlists, private vaulted state, and album art.
 - Share visual language and, later, possibly small helper packages. Do not merge
   the apps unless there is a stronger product reason.
 
@@ -71,22 +71,16 @@ Goal: first run should make connection choices obvious.
 - Add a setup view before the main browser when no usable source is configured.
 - Provide a Subsonic/Navidrome form: server URL, username, password, and test
   connection action.
-- Provide a local music folder section for one or more folders, even if the
-  first implementation only stores them for later indexing work.
+- Local folder setup has been removed from the active product direction.
 - Clearly show the active source in the main UI after setup.
 - Do not print or persist secrets outside the existing config path.
 
 ### 3. Local Folder Foundation
 
-Status: foundation done; indexing/playback remains future work.
+Status: retired.
 
-Goal: prepare local music support without turning Subweazl into a large
-indexing rewrite.
-
-- Add config support for local music folders.
-- Validate folders exist and are readable.
-- Keep the first pass focused on configuration and UI plumbing.
-- Add indexing/playback in a later feature step.
+Goal: remove local folder playback/indexing from the active Subweazl product
+direction. Subweazl is Subsonic-only; private local state belongs in the vault.
 
 ### 4. Split Large TUI Update File
 
@@ -133,11 +127,10 @@ music client.
 Status: done.
 
 - Left arrow backs out to the previous section.
-- The main view shows source badges for streaming Subsonic and local folders.
+- The main view keeps Subsonic discovery visible.
 - The now-playing surface is a bottom play bar with honest cover availability
   status; actual TCT rendering still belongs to mpv, not the Bubble Tea bar.
-- Subsonic and Local now have separate top-level source sections instead of
-  sharing one search/navigation surface.
+- Local folder source sections have been retired from the active product.
 
 ### 8. Native Album Art
 

@@ -228,7 +228,7 @@ Completion notes:
 
 ### Phase 1. Scope Cleanup: Subsonic Only
 
-Status: pending.
+Status: complete.
 
 Goal: remove local-file-library behavior from the active product surface while
 keeping the vault concept for private Subsonic state.
@@ -255,6 +255,25 @@ Exit criteria:
 - No active UI path presents "local folders" as a primary source.
 - README and help text no longer promise local folder playback/indexing.
 - Verification/build/install/smoke loop passes.
+
+Completion notes:
+
+- Removed local folder setup from config and first-run UI.
+- Removed active local folder browsing, indexing, source switching, and local file
+  playback from the TUI.
+- Removed the obsolete local-index package and local-library TUI files.
+- Removed the obsolete local-library workbook.
+- Kept `internal/localstore` for the Phase 2 private vault rebuild.
+- Subsonic playback no longer opens or reports errors from local/private storage.
+- README and help text now describe Subsonic-only controls.
+- `go test ./...` passed with project-local caches.
+- `go build -buildvcs=false -o /tmp/subweazl ./cmd/subweazl` passed.
+- `SUBWEAZL_SKIP_LAUNCH=1 ./scripts/install.sh` installed
+  `/home/bobp/.subweazl/bin/subweazl`.
+- Installed binary smoke launch reached the Subsonic setup TUI and was terminated
+  by the expected 3-second timeout.
+- 400 LOC rule checked; largest Go file is `internal/subsonic/client.go` at 374
+  lines.
 
 ### Phase 2. Single Vault Onboarding
 

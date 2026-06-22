@@ -2,7 +2,6 @@ package tui
 
 import (
 	"context"
-	"strings"
 
 	"github.com/bprendie/subweazl/internal/config"
 	"github.com/bprendie/subweazl/internal/subsonic"
@@ -13,7 +12,6 @@ const (
 	setupServer = iota
 	setupUser
 	setupPassword
-	setupFolders
 )
 
 func (m Model) handleSetupKey(msg tea.KeyMsg) (Model, tea.Cmd) {
@@ -50,16 +48,12 @@ func (m Model) setupConfig() config.Config {
 	cfg.Server = m.setup[setupServer].Value()
 	cfg.Username = m.setup[setupUser].Value()
 	cfg.Password = m.setup[setupPassword].Value()
-	cfg.LocalMusicFolders = splitFolders(m.setup[setupFolders].Value())
 	return cfg
 }
 
 func (m Model) saveSetup(test bool) tea.Cmd {
 	cfg := m.setupConfig()
 	return func() tea.Msg {
-		if err := cfg.ValidateLocalMusicFolders(); err != nil {
-			return errMsg{err}
-		}
 		if test && cfg.Ready() {
 			client := subsonic.New(cfg.Server, cfg.Username, cfg.Password)
 			if err := client.Ping(context.Background()); err != nil {
@@ -75,22 +69,4 @@ func (m Model) saveSetup(test bool) tea.Cmd {
 		}
 		return setupSavedMsg{cfg: cfg, status: status}
 	}
-}
-
-func joinFolders(folders []string) string {
-	return strings.Join(folders, ", ")
-}
-
-func splitFolders(raw string) []string {
-	parts := strings.FieldsFunc(raw, func(r rune) bool {
-		return r == ',' || r == '\n'
-	})
-	folders := make([]string, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part != "" {
-			folders = append(folders, part)
-		}
-	}
-	return folders
 }

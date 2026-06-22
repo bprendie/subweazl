@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"net/url"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -19,7 +20,6 @@ func (m Model) sidebar(width, height int) string {
 		{"2", "Playlists", modePlaylists},
 		{"3", "Random albums", modeRandomAlbums},
 		{"/", "Song search", modeSearch},
-		{"l", "Local folders", modeLocal},
 	}
 	var b strings.Builder
 	b.WriteString(m.railHeader("SUBSONIC"))
@@ -32,12 +32,6 @@ func (m Model) sidebar(width, height int) string {
 	b.WriteString(m.railHeader("SERVER"))
 	b.WriteString("\n")
 	b.WriteString(m.styles.help.Render(ansi.Truncate(m.serverLabel(), max(8, width-4), "...")))
-	if height > 15 {
-		b.WriteString("\n\n")
-		b.WriteString(m.railHeader("LOCAL"))
-		b.WriteString("\n")
-		b.WriteString(m.styles.help.Render(ansi.Truncate(m.localLabel(), max(8, width-4), "...")))
-	}
 	return m.styles.panel.Width(width).Height(height).Render(b.String())
 }
 
@@ -70,9 +64,15 @@ func (m Model) navEntryActive(entry mode) bool {
 		return m.mode == modePlaylists || m.mode == modeStation
 	case modeSearch:
 		return m.mode == modeSearch
-	case modeLocal:
-		return m.mode == modeLocal
 	default:
 		return m.mode == entry
 	}
+}
+
+func (m Model) serverLabel() string {
+	u, err := url.Parse(m.cfg.Server)
+	if err != nil || u.Host == "" {
+		return "not connected"
+	}
+	return u.Host
 }

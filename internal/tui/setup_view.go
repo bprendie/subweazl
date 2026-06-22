@@ -9,7 +9,7 @@ import (
 
 func (m Model) setupView(width int) string {
 	var b strings.Builder
-	title := lipgloss.NewStyle().Foreground(crushGold).Bold(true).Render("connections")
+	title := lipgloss.NewStyle().Foreground(crushGold).Bold(true).Render("subsonic connection")
 	b.WriteString(title)
 	b.WriteString("\n")
 	b.WriteString(m.styles.help.Render("[tab] next  [enter] test/save  [ctrl+s] save  [q] quit"))
@@ -32,10 +32,6 @@ func (m Model) setupPanel(width int) string {
 		b.WriteString("\n")
 	}
 	b.WriteString("\n")
-	b.WriteString(lipgloss.NewStyle().Foreground(crushPink).Render("Local music folders"))
-	b.WriteString("\n")
-	b.WriteString(m.setup[setupFolders].View())
-	b.WriteString("\n")
-	b.WriteString(m.styles.help.Render(ansi.Truncate("comma-separated paths are stored for local library support", max(24, width), "...")))
+	b.WriteString(m.styles.help.Render(ansi.Truncate("private vault setup comes next", max(24, width), "...")))
 	return b.String()
 }

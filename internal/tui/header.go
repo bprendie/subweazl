@@ -13,11 +13,7 @@ func (m Model) appHeader(width int) string {
 	}
 	left := m.styles.header.Render("Subweazl")
 	section := lipgloss.NewStyle().Foreground(crushMint).Render(strings.ToUpper(m.list.Title))
-	right := m.serverLabel()
-	if m.mode == modeLocal {
-		right = "local: " + m.localLabel()
-	}
-	right = m.styles.help.Render(ansi.Truncate(right, max(8, width/3), "..."))
+	right := m.styles.help.Render(ansi.Truncate(m.serverLabel(), max(8, width/3), "..."))
 	gap := width - lipgloss.Width(left) - lipgloss.Width(section) - lipgloss.Width(right) - 4
 	if gap < 1 {
 		gap = 1

@@ -35,12 +35,12 @@ func (m Model) appShell(width int) string {
 	bodyHeight := max(2, bodyRenderedHeight-2)
 	body := ""
 	if width < 64 {
-		body = m.mainPane(width, bodyHeight)
+		body = m.mainListPane(width, bodyHeight)
 	} else {
 		sidebarWidth := clampInt(width/4, 20, 30)
 		mainWidth := max(24, width-sidebarWidth-2)
 		sidebar := m.sidebar(sidebarWidth, bodyHeight)
-		main := m.mainPane(mainWidth, bodyHeight)
+		main := m.mainListPane(mainWidth, bodyHeight)
 		body = lipgloss.JoinHorizontal(lipgloss.Top, sidebar, main)
 	}
 	b.WriteString(header)
@@ -55,13 +55,6 @@ func (m Model) appShell(width int) string {
 		b.WriteString("\n" + m.styles.error.Render("set SUBWEAZL_USER and SUBWEAZL_PASSWORD or edit config.json"))
 	}
 	return b.String()
-}
-
-func (m Model) mainPane(width, height int) string {
-	if m.mode == modeLocal && width >= 72 {
-		return m.localPane(width, height)
-	}
-	return m.mainListPane(width, height)
 }
 
 func (m Model) mainListPane(width, height int) string {
