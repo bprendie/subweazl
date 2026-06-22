@@ -1,3 +1,5 @@
+![Subweazl hero](subweazl_hero.png)
+
 # Subweazl
 
 ```text
@@ -19,6 +21,8 @@ There is no local-folder mode. We pull the audio from the server and keep the st
 Cover art renders right in the grid. `mpv` does the heavy lifting. `ffmpeg` feeds the live Harmonica VU meters.
 
 No cloud sync. No telemetry. Just your music, locked down tight.
+
+![Subweazl app screenshot](subweazl.png)
 
 ## Forge The Binary
 
