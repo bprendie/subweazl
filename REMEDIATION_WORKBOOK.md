@@ -582,8 +582,7 @@ Scope:
 
 - Add provider setup patterned after WeazlWrite where applicable.
 - Make the installer/setup flow ask for the LLM provider once LLM support lands.
-- Support OpenAI-compatible/vLLM first, with `https://granite.prendie.io` as
-  the known vLLM smoke/default endpoint; keep Ollama second if still desired.
+- Support configurable LLM providers, with provider, base URL, model, context window, and optional API key supplied by installer/setup or local config. Do not hardcode provider names, model names, or endpoints as defaults.
 - Summarize vaulted listening history without sending raw secrets or
   credentials.
 - Send candidate IDs and metadata to the model.
@@ -626,50 +625,77 @@ Exit criteria:
 - All phases marked accurately.
 - Verification/build/install/smoke loop passes.
 
-## Sub-Decision Queue
+## Resolved Decisions
 
-Break these down next.
+These decisions have already been implemented through Phases 1-7 and should not
+be reopened unless a later phase exposes a concrete problem.
 
-### Product Scope Sub-Decisions
+### Product Scope
 
-- Which local-library packages are deleted versus retained as references?
-- Should the SQLite store be renamed from local-library language to vault/cache
-  language?
-- What migration, if any, should exist from the current experimental local DB?
+- Subweazl is Subsonic/Navidrome-only. Local file playback and folder indexing
+  are out of scope.
+- Local-library UI and setup concepts were removed from the active product
+  surface.
+- `internal/localstore` remains as the encrypted vault/cache store, not as a
+  local music library.
 
-### Onboarding Sub-Decisions
+### Onboarding
 
-- Should setup be one screen or a staged flow?
-- Should vault password creation happen before or after Subsonic ping succeeds?
-- Should config credentials remain in `config.json`, or should credentials move
-  into the vault later?
+- First run is staged: Subsonic connection first, then single vault
+  create/unlock.
+- The vault is required for private app state: play history, queues, private
+  playlists, cache, and recommendation context.
+- Subsonic credentials currently remain in config; moving them into the vault is
+  a future hardening decision, not part of the completed remediation phases.
 
-### Home Surface Sub-Decisions
+### Home Surface
 
-- What exact blocks appear on "jump back in"?
-- What is shown before enough vaulted history exists?
-- Which keys jump directly to search, queue, playlists, and discovery?
+- Home is the post-vault landing view.
+- It shows jump-back-in entries when vaulted state exists and useful discovery
+  shortcuts when it does not.
+- Direct keys exist for home, discovery, queue, private playlists, cache sync,
+  deterministic generation, and search.
 
-### Queue Sub-Decisions
+### Queue
 
-- What data belongs in the in-memory queue versus the vaulted queue snapshot?
-- Should next/previous track history be linear or support branching after manual
-  selection?
-- What keys should control queue operations?
+- Queue state lives in memory and persists as an encrypted vault snapshot.
+- Album, playlist, station, and search playback build queue context for
+  continuous listening.
+- Queue controls cover enqueue, next, previous, remove, clear, reorder, and
+  save-as-private-playlist.
 
-### Vault And Cache Sub-Decisions
+### Vault And Cache
 
-- Which Subsonic entities are cached first: artists, albums, tracks, playlists,
-  genres, starred, play counts?
-- How does cache sync run: manual key, startup background sync, scheduled, or
-  all of the above?
-- What remains usable while sync is running or stale?
+- The Subsonic metadata cache is encrypted in the vault.
+- Cache sync is manual on `y` and does not block startup.
+- Search uses the cache first and falls back to server search when needed.
 
-### LLM Sub-Decisions
+### Recommendations
 
-- Provider setup baseline: borrow the WeazlWrite flow. Prompt for provider
-  (`vllm` first, `ollama` second), base URL, discovered/manual model, and
-  context window. Normalize vLLM URLs without `/v1`.
-- Default/smoke vLLM endpoint: `https://granite.prendie.io`.
-- What minimum deterministic playlist generator exists before LLM curation?
-- What private data is allowed into prompts, and how is it summarized?
+- A deterministic generator exists before LLM curation.
+- Generated queues only use cached Subsonic track IDs.
+- Recent play history is used to avoid stale recommendations.
+- Recipe metadata is stored encrypted in the vault.
+
+## Remaining Decisions
+
+### Phase 8: LLM Curator
+
+- Exact provider config shape: provider name, base URL, model, context window,
+  and any optional API key handling.
+- Whether LLM setup belongs only in the installer/config flow, also in first-run
+  TUI setup, or both.
+- How much vaulted listening history is summarized into prompts.
+- How many candidate tracks are sent per request and what metadata fields are
+  allowed.
+- How the UI presents rejected model results, empty valid result sets, and
+  fallback to deterministic generation.
+- Whether LLM output creates a queue only, a private playlist, or lets the user
+  choose.
+
+### Phase 9: Polish And Release
+
+- Final README tone and exact feature list after LLM support lands.
+- Final install-script prompts and upgrade behavior for existing configs.
+- Final smoke-test checklist that avoids committing private endpoints,
+  usernames, passwords, or model URLs.

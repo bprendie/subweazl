@@ -2,6 +2,19 @@ package config
 
 import "testing"
 
+func TestDefaultConfigIsEmpty(t *testing.T) {
+	configHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", configHome)
+
+	got, err := Load()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if got.Server != "" || got.Username != "" || got.Password != "" {
+		t.Fatalf("default config = %#v", got)
+	}
+}
+
 func TestSaveLoadSubsonicConfig(t *testing.T) {
 	configHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", configHome)

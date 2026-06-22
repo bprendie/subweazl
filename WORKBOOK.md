@@ -28,7 +28,7 @@ Use the user-provided Subsonic/Navidrome test server only through environment
 variables or the local config file. Do not commit the username or password.
 
 ```sh
-export SUBWEAZL_SERVER="https://weazltunes.prendie.io"
+export SUBWEAZL_SERVER="https://your-subsonic.example"
 export SUBWEAZL_USER="<provided-user>"
 export SUBWEAZL_PASSWORD="<provided-password>"
 ```

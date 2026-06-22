@@ -15,10 +15,10 @@ func newHomeTestModel(t *testing.T) Model {
 	t.Setenv("SUBWEAZL_DATA_HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	m := New(config.Config{Server: "https://example.test", Username: "user", Password: "pass"})
-	m.vaultInput.SetValue("thisguy47")
+	m.vaultInput.SetValue("test-vault-pass")
 	next, _ := m.submitVault()
 	m = next
-	m.vaultInput.SetValue("thisguy47")
+	m.vaultInput.SetValue("test-vault-pass")
 	next, _ = m.submitVault()
 	m = next
 	if m.mode != modeHome {

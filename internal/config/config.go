@@ -85,7 +85,6 @@ func (c *Config) applyEnv() {
 
 func envConfig() Config {
 	cfg := Config{
-		Server:   "https://weazltunes.prendie.io",
 		Username: os.Getenv("SUBWEAZL_USER"),
 		Password: os.Getenv("SUBWEAZL_PASSWORD"),
 	}

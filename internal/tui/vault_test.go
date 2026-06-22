@@ -29,13 +29,13 @@ func TestVaultCreateUnlocksAndLoadsNewest(t *testing.T) {
 	t.Setenv("SUBWEAZL_DATA_HOME", dataHome)
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	m := New(config.Config{Server: "https://example.test", Username: "user", Password: "pass"})
-	m.vaultInput.SetValue("thisguy47")
+	m.vaultInput.SetValue("test-vault-pass")
 	next, _ := m.submitVault()
 	m = next
 	if m.vaultStage != vaultStageConfirm {
 		t.Fatalf("vaultStage = %q, want confirm", m.vaultStage)
 	}
-	m.vaultInput.SetValue("thisguy47")
+	m.vaultInput.SetValue("test-vault-pass")
 	next, cmd := m.submitVault()
 	m = next
 	if m.mode != modeHome {
@@ -73,10 +73,10 @@ func TestExistingVaultStartsInUnlockMode(t *testing.T) {
 	t.Setenv("SUBWEAZL_DATA_HOME", dataHome)
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	m := New(config.Config{Server: "https://example.test", Username: "user", Password: "pass"})
-	m.vaultInput.SetValue("thisguy47")
+	m.vaultInput.SetValue("test-vault-pass")
 	next, _ := m.submitVault()
 	m = next
-	m.vaultInput.SetValue("thisguy47")
+	m.vaultInput.SetValue("test-vault-pass")
 	if next, _ = m.submitVault(); next.vaultStore == nil || !next.vaultStore.Unlocked() {
 		t.Fatal("failed to create initial vault")
 	}
@@ -91,7 +91,7 @@ func TestExistingVaultStartsInUnlockMode(t *testing.T) {
 	if m.err == "" {
 		t.Fatal("wrong password did not report an error")
 	}
-	m.vaultInput.SetValue("thisguy47")
+	m.vaultInput.SetValue("test-vault-pass")
 	next, cmd := m.submitVault()
 	if next.mode != modeHome {
 		t.Fatalf("mode = %v, want modeHome", next.mode)
