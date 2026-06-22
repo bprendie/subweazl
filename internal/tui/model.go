@@ -63,6 +63,7 @@ type Model struct {
 	playing         *subsonic.Track
 	playSource      string
 	queue           playqueue.Queue
+	cacheStatus     localstore.CacheStatus
 	paused          bool
 	trackTitle      string
 	titlePoll       time.Time
@@ -205,6 +206,7 @@ func New(cfg config.Config) Model {
 	}
 	if m.mode != modeVault {
 		m.restoreQueueSnapshot()
+		m.refreshCacheStatus()
 		m.showHome()
 	}
 	m.refreshTitle()

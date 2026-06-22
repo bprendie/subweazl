@@ -132,3 +132,47 @@ func sameStrings(a, b []string) bool {
 	}
 	return true
 }
+
+func TestAlbumsQueryUsesAlphabeticalPaging(t *testing.T) {
+	client := New("https://example.test", "u", "p")
+	client.http = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if got := r.URL.Query().Get("type"); got != "alphabeticalByName" {
+			t.Fatalf("type = %q, want alphabeticalByName", got)
+		}
+		if got := r.URL.Query().Get("offset"); got != "25" {
+			t.Fatalf("offset = %q, want 25", got)
+		}
+		if got := r.URL.Query().Get("size"); got != "50" {
+			t.Fatalf("size = %q, want 50", got)
+		}
+		return jsonResponse(t, map[string]any{
+			"albumList2": map[string]any{"album": []Album{{ID: "album-1", Name: "Album 1"}}},
+		}), nil
+	})}
+	got, err := client.Albums(context.Background(), 25, 50)
+	if err != nil {
+		t.Fatalf("Albums: %v", err)
+	}
+	if len(got) != 1 || got[0].ID != "album-1" {
+		t.Fatalf("albums = %#v", got)
+	}
+}
+
+func TestStarredTracks(t *testing.T) {
+	client := New("https://example.test", "u", "p")
+	client.http = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if got := path.Base(r.URL.Path); got != "getStarred2.view" {
+			t.Fatalf("method = %q, want getStarred2.view", got)
+		}
+		return jsonResponse(t, map[string]any{
+			"starred2": map[string]any{"song": []Track{{ID: "star-1", Title: "Star 1"}}},
+		}), nil
+	})}
+	got, err := client.Starred(context.Background())
+	if err != nil {
+		t.Fatalf("Starred: %v", err)
+	}
+	if len(got) != 1 || got[0].ID != "star-1" {
+		t.Fatalf("starred = %#v", got)
+	}
+}

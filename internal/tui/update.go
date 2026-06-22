@@ -26,6 +26,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.spinner, cmd = m.spinner.Update(msg)
 			cmds = append(cmds, cmd)
 		}
+	case cacheSyncMsg:
+		m.cacheStatus = msg.status
+		m.status = fmt.Sprintf("synced %d cached tracks", msg.tracks)
+		m.err = ""
+		m.searching = false
 	case loadedMsg:
 		m.mode = msg.mode
 		if msg.mode != modeStation {
@@ -150,6 +155,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 	case "5":
 		m.showPrivatePlaylists()
 		return m, noop
+	case "y":
+		m.beginSearch("syncing Subsonic cache")
+		return m, m.syncSubsonicCache()
 	case "/":
 		m.pushNav()
 		m.mode = modeSearch

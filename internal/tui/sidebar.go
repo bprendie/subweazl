@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
 
@@ -22,6 +23,7 @@ func (m Model) sidebar(width, height int) string {
 		{"3", "Random albums", modeRandomAlbums},
 		{"4", "Queue", modeQueue},
 		{"5", "Private playlists", modePrivatePlaylists},
+		{"y", "Sync cache", modeHome},
 		{"/", "Song search", modeSearch},
 	}
 	var b strings.Builder
@@ -35,6 +37,10 @@ func (m Model) sidebar(width, height int) string {
 	b.WriteString(m.railHeader("SERVER"))
 	b.WriteString("\n")
 	b.WriteString(m.styles.help.Render(ansi.Truncate(m.serverLabel(), max(8, width-4), "...")))
+	b.WriteString("\n\n")
+	b.WriteString(m.railHeader("CACHE"))
+	b.WriteString("\n")
+	b.WriteString(m.styles.help.Render(ansi.Truncate(m.cacheLabel(), max(8, width-4), "...")))
 	return m.styles.panel.Width(width).Height(height).Render(b.String())
 }
 
@@ -82,4 +88,11 @@ func (m Model) serverLabel() string {
 		return "not connected"
 	}
 	return u.Host
+}
+
+func (m Model) cacheLabel() string {
+	if m.cacheStatus.TrackCount <= 0 {
+		return "not synced"
+	}
+	return fmt.Sprintf("%d tracks", m.cacheStatus.TrackCount)
 }

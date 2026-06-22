@@ -480,7 +480,7 @@ Completion notes:
 
 ### Phase 6. Subsonic Metadata Cache Sync
 
-Status: pending.
+Status: complete.
 
 Goal: add a vaulted local Subsonic metadata cache for fast search and future
 recommendations, inspired by Nautiline-style local DB sync.
@@ -507,6 +507,25 @@ Exit criteria:
 - Cached search is meaningfully faster after sync.
 - Stale or missing cache does not block server browsing/playback.
 - Verification/build/install/smoke loop passes.
+
+Completion notes:
+
+- Added Subsonic album-page and starred-track client endpoints for metadata sync.
+- Added encrypted Subsonic track cache storage under the private vault.
+- Added manual cache sync on `y`, with spinner status while sync runs.
+- Added cache status in the sidebar.
+- Search now checks the vaulted cache first and falls back to server `search3`
+  when the cache is empty, stale, or misses.
+- Cache sync does not run on startup, so first interaction remains immediate.
+- Added localstore cache tests, Subsonic endpoint tests, and TUI cached-search
+  tests.
+- `go test ./...` passed with project-local caches.
+- `go build -buildvcs=false -o /tmp/subweazl ./cmd/subweazl` passed.
+- `SUBWEAZL_SKIP_LAUNCH=1 ./scripts/install.sh` installed
+  `/home/bobp/.subweazl/bin/subweazl`.
+- Installed-binary smoke test used temporary config/data paths, created and
+  unlocked a vault, and verified cache status plus the `y` sync control were
+  visible without forcing a full live library sync.
 
 ### Phase 7. Recommendation Foundation
 

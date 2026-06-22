@@ -69,8 +69,13 @@ func (m Model) loadPlaylist(id string) tea.Cmd {
 
 func (m Model) search(query string) tea.Cmd {
 	return func() tea.Msg {
+		if tracks, ok, err := m.searchCached(query); err != nil {
+			return errMsg{err}
+		} else if ok {
+			return tracksMsg(tracks, nil, "cached search")
+		}
 		tracks, err := m.client.Search(context.Background(), query)
-		return tracksMsg(tracks, err, "search")
+		return tracksMsg(tracks, err, "server search")
 	}
 }
 
@@ -107,7 +112,7 @@ func tracksMsg(tracks []subsonic.Track, err error, label string) tea.Msg {
 	}
 	items := trackItems(tracks)
 	nextMode := modeTracks
-	if label == "search" {
+	if label == "search" || label == "cached search" || label == "server search" {
 		nextMode = modeSearch
 	}
 	return loadedMsg{items: items, mode: nextMode, status: fmt.Sprintf("loaded %d %s tracks", len(items), label)}

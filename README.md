@@ -103,7 +103,8 @@ The Network:
 - `3`: random albums (Subsonic/Navidrome)
 - `4`: queue view
 - `5`: private vaulted playlists
-- `/`: search the server for tracks
+- `y`: sync vaulted Subsonic metadata cache
+- `/`: search cached tracks first, then fall back to server search
 
 Navigation And Execution:
 
