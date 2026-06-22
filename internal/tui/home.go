@@ -11,13 +11,13 @@ import (
 )
 
 const (
-	homeActionResume       = "resume"
-	homeActionNewest       = "newest"
-	homeActionPlaylists    = "playlists"
-	homeActionRandom       = "random"
-	homeActionSearch       = "search"
-	homeActionQueue        = "queue"
-	homeActionPlaylistSoon = "playlist-soon"
+	homeActionResume           = "resume"
+	homeActionNewest           = "newest"
+	homeActionPlaylists        = "playlists"
+	homeActionRandom           = "random"
+	homeActionSearch           = "search"
+	homeActionQueue            = "queue"
+	homeActionPrivatePlaylists = "private-playlists"
 )
 
 func (m *Model) showHome() {
@@ -50,7 +50,7 @@ func (m Model) homeItems() []list.Item {
 		item{kind: "home", title: "Random albums", desc: "shake loose a server discovery path", action: homeActionRandom},
 		item{kind: "home", title: "Search", desc: "find tracks by song, artist, or album", action: homeActionSearch},
 		item{kind: "home", title: "Last queue", desc: "restore or inspect the private queue", action: homeActionQueue},
-		item{kind: "home", title: "Private playlists", desc: "vaulted playlists land in Phase 5", action: homeActionPlaylistSoon},
+		item{kind: "home", title: "Private playlists", desc: "load saved private queue playlists", action: homeActionPrivatePlaylists},
 	)
 	return items
 }
@@ -110,9 +110,8 @@ func (m Model) handleHomeAction(it item) (Model, tea.Cmd) {
 	case homeActionQueue:
 		m.showQueue()
 		return m, noop
-	case homeActionPlaylistSoon:
-		m.status = "private playlists land in Phase 5"
-		m.err = ""
+	case homeActionPrivatePlaylists:
+		m.showPrivatePlaylists()
 		return m, noop
 	default:
 		m.err = "home action is unavailable"

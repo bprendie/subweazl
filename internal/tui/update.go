@@ -147,6 +147,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 	case "4":
 		m.showQueue()
 		return m, noop
+	case "5":
+		m.showPrivatePlaylists()
+		return m, noop
 	case "/":
 		m.pushNav()
 		m.mode = modeSearch
@@ -155,6 +158,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 		return m, noop
 	case "enter":
 		return m.handleEnter()
+	case "w":
+		return m.startSaveQueue()
 	case "n":
 		return m.playNext()
 	case "p":
@@ -163,6 +168,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 		return m.enqueueSelected()
 	case "x":
 		return m.removeQueueSelection()
+	case "delete", "backspace":
+		return m.deletePrivatePlaylist()
 	case "c":
 		return m.clearQueue()
 	case "u":
@@ -185,6 +192,20 @@ func (m Model) handleKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 
 func (m Model) handleEnter() (Model, tea.Cmd) {
 	if m.input.Focused() {
+		if m.savingQueue {
+			name := m.input.Value()
+			if name == "" {
+				return m, nil
+			}
+			return m.saveQueueAsPrivatePlaylist(name)
+		}
+		if m.privateRenaming != "" {
+			name := m.input.Value()
+			if name == "" {
+				return m, nil
+			}
+			return m.renamePrivatePlaylist(name)
+		}
 		if m.renaming != nil {
 			name := m.input.Value()
 			if name == "" {
@@ -215,6 +236,8 @@ func (m Model) handleEnter() (Model, tea.Cmd) {
 			m.pushNav()
 			m.beginSearch("loading playlist")
 			return m, m.loadPlaylist(it.playlist.ID)
+		case "private_playlist":
+			return m.loadPrivatePlaylist(it)
 		case "song", "queue":
 			return m.playSelectedTrack(it)
 		default:
@@ -238,6 +261,9 @@ func (m Model) createStation() (Model, tea.Cmd) {
 }
 
 func (m Model) startRename() (Model, tea.Cmd) {
+	if m.mode == modePrivatePlaylists {
+		return m.startPrivatePlaylistRename()
+	}
 	if it, ok := m.list.SelectedItem().(item); ok && it.kind == "playlist" {
 		playlist := it.playlist
 		m.renaming = &playlist

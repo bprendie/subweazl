@@ -436,7 +436,7 @@ Completion notes:
 
 ### Phase 5. Private Playlists And Queue-To-Playlist
 
-Status: pending.
+Status: complete.
 
 Goal: make queues useful as private vaulted playlists.
 
@@ -458,6 +458,25 @@ Exit criteria:
 - User can create a queue, save it, restart, unlock vault, and load it again.
 - Private playlist operations do not mutate the Subsonic server.
 - Verification/build/install/smoke loop passes.
+
+Completion notes:
+
+- Added encrypted private playlist storage using the vault `local_playlists` table.
+- Added save-current-queue as private playlist with `w`.
+- Added private playlist view on `5` and Home `Private playlists` routing.
+- Loading a private playlist replaces the queue and persists the queue snapshot.
+- Added private playlist rename with `ctrl+r` and delete with `delete`/`backspace`.
+- Private playlist operations are vault-only and do not call Subsonic playlist mutation APIs.
+- Added localstore and TUI workflow tests for save, list, load, rename, delete,
+  and encrypted payload storage.
+- `go test ./...` passed with project-local caches.
+- `go build -buildvcs=false -o /tmp/subweazl ./cmd/subweazl` passed.
+- `SUBWEAZL_SKIP_LAUNCH=1 ./scripts/install.sh` installed
+  `/home/bobp/.subweazl/bin/subweazl`.
+- Installed-binary smoke test used temporary config/data paths, created and
+  unlocked a vault, and verified Phase 5 private playlist controls were visible.
+  The full private playlist save/load/rename/delete workflow is covered by
+  automated localstore and TUI tests.
 
 ### Phase 6. Subsonic Metadata Cache Sync
 

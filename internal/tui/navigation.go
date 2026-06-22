@@ -22,6 +22,8 @@ func (m *Model) clearNav() {
 func (m Model) back() (Model, tea.Cmd) {
 	if m.input.Focused() {
 		m.renaming = nil
+		m.savingQueue = false
+		m.privateRenaming = ""
 		m.resetInput()
 		return m, noop
 	}

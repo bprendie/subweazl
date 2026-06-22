@@ -30,6 +30,7 @@ const (
 	modeTracks
 	modeSearch
 	modeQueue
+	modePrivatePlaylists
 	modeStation
 	modeLastPlayed
 	modeSetup
@@ -39,53 +40,56 @@ const (
 const searchPrompt = "stream > "
 
 type Model struct {
-	cfg        config.Config
-	styles     styles
-	client     subsonic.Client
-	player     *player.Player
-	meter      *audio.Meter
-	list       list.Model
-	input      textinput.Model
-	setup      []textinput.Model
-	setupFocus int
-	vaultInput textinput.Model
-	vaultStore *localstore.Store
-	vaultStage string
-	vaultPass  string
-	spinner    spinner.Model
-	mode       mode
-	nav        []navSnapshot
-	appState   state.State
-	status     string
-	err        string
-	searching  bool
-	playing    *subsonic.Track
-	playSource string
-	queue      playqueue.Queue
-	paused     bool
-	trackTitle string
-	titlePoll  time.Time
-	coverID    string
-	coverArt   image.Image
-	coverErr   string
-	coverCache map[string]image.Image
-	energy     audio.Sample
-	renaming   *subsonic.Playlist
-	station    *subsonic.Playlist
-	width      int
-	height     int
-	visualizer Visualizer
+	cfg             config.Config
+	styles          styles
+	client          subsonic.Client
+	player          *player.Player
+	meter           *audio.Meter
+	list            list.Model
+	input           textinput.Model
+	setup           []textinput.Model
+	setupFocus      int
+	vaultInput      textinput.Model
+	vaultStore      *localstore.Store
+	vaultStage      string
+	vaultPass       string
+	spinner         spinner.Model
+	mode            mode
+	nav             []navSnapshot
+	appState        state.State
+	status          string
+	err             string
+	searching       bool
+	playing         *subsonic.Track
+	playSource      string
+	queue           playqueue.Queue
+	paused          bool
+	trackTitle      string
+	titlePoll       time.Time
+	coverID         string
+	coverArt        image.Image
+	coverErr        string
+	coverCache      map[string]image.Image
+	energy          audio.Sample
+	renaming        *subsonic.Playlist
+	savingQueue     bool
+	privateRenaming string
+	station         *subsonic.Playlist
+	width           int
+	height          int
+	visualizer      Visualizer
 }
 
 type item struct {
-	kind       string
-	title      string
-	desc       string
-	track      subsonic.Track
-	album      subsonic.Album
-	playlist   subsonic.Playlist
-	action     string
-	queueIndex int
+	kind            string
+	title           string
+	desc            string
+	track           subsonic.Track
+	album           subsonic.Album
+	playlist        subsonic.Playlist
+	privatePlaylist localstore.PrivatePlaylist
+	action          string
+	queueIndex      int
 }
 
 type navSnapshot struct {
@@ -101,6 +105,8 @@ func (i item) Title() string {
 		return i.album.Name
 	case "playlist":
 		return i.playlist.Name
+	case "private_playlist":
+		return i.privatePlaylist.Name
 	case "empty", "home", "queue":
 		return i.title
 	default:
@@ -114,6 +120,8 @@ func (i item) Description() string {
 		return fmt.Sprintf("%s  %d", i.album.Artist, i.album.Year)
 	case "playlist":
 		return fmt.Sprintf("%d tracks", i.playlist.Count)
+	case "private_playlist":
+		return fmt.Sprintf("private vault playlist  %d tracks", len(i.privatePlaylist.Tracks))
 	case "empty", "home", "queue":
 		return i.desc
 	default:
@@ -263,6 +271,8 @@ func (m *Model) refreshTitle() {
 		m.list.Title = "search results"
 	case modeQueue:
 		m.list.Title = "queue"
+	case modePrivatePlaylists:
+		m.list.Title = "private playlists"
 	case modeStation:
 		m.list.Title = "station"
 	case modeLastPlayed:

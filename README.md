@@ -102,11 +102,12 @@ The Network:
 - `2`: playlists (Subsonic/Navidrome)
 - `3`: random albums (Subsonic/Navidrome)
 - `4`: queue view
+- `5`: private vaulted playlists
 - `/`: search the server for tracks
 
 Navigation And Execution:
 
-- `enter`: crack open an album/playlist, fire the selected track, or jump to a queue row
+- `enter`: crack open an album/playlist, fire the selected track, jump to a queue row, or load a private playlist
 - `left`: eject to the previous section
 - `esc`: kill the search prompt
 
@@ -115,12 +116,14 @@ The Amp:
 - `space`: pause/resume the audio
 - `n` / `p`: next/previous queue track
 - `a`: enqueue the selected or playing track
+- `w`: save the current queue as a private playlist
 - `x`: remove the selected queue row
+- `delete` / `backspace`: delete the selected private playlist
 - `c`: clear the queue
 - `u` / `d`: move the selected queue row up/down
 - `s`: kill the playback process
 - `r`: forge a saved station playlist from the active track
-- `ctrl+r`: rename the selected playlist or current station
+- `ctrl+r`: rename the selected server playlist, current station, or private playlist
 
 The Setup Deck:
 
