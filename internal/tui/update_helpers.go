@@ -4,6 +4,7 @@ import (
 	"github.com/bprendie/subweazl/internal/audio"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func (m *Model) drainMeter() {
@@ -58,14 +59,13 @@ func (m *Model) resize(width, height int) {
 		sidebarWidth := clampInt(contentWidth/4, 20, 30)
 		mainWidth = max(24, contentWidth-sidebarWidth-6)
 	}
-	footerHeight := 7
-	if contentWidth < 64 {
-		footerHeight = 5
-	} else {
-		footerHeight = 11
-	}
-	listHeight := height - 2 - 3 - footerHeight - 2 - 2
-	m.list.SetSize(mainWidth, max(2, listHeight))
+	header := m.appHeader(contentWidth)
+	footer := m.footer(contentWidth)
+	innerHeight := max(6, height-2)
+	bodyRenderedHeight := innerHeight - lipgloss.Height(header) - lipgloss.Height(footer) - 2
+	bodyRenderedHeight = max(4, bodyRenderedHeight)
+	bodyHeight := max(2, bodyRenderedHeight-2)
+	m.list.SetSize(mainWidth, bodyHeight)
 	m.input.Width = max(20, contentWidth-10)
 }
 

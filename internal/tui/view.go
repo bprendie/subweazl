@@ -39,10 +39,12 @@ func (m Model) appShell(width int) string {
 	bodyHeight := max(2, bodyRenderedHeight-2)
 	body := ""
 	if width < 64 {
+		m.list.SetSize(width, max(2, bodyHeight))
 		body = m.mainListPane(width, bodyHeight)
 	} else {
 		sidebarWidth := clampInt(width/4, 20, 30)
 		mainWidth := max(24, width-sidebarWidth-2)
+		m.list.SetSize(mainWidth, max(2, bodyHeight))
 		sidebar := m.sidebar(sidebarWidth, bodyHeight)
 		main := m.mainListPane(mainWidth, bodyHeight)
 		body = lipgloss.JoinHorizontal(lipgloss.Top, sidebar, main)

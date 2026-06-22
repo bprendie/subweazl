@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/lipgloss"
+
 	"github.com/bprendie/subweazl/internal/config"
 )
 
@@ -26,6 +28,24 @@ func TestMainHeaderFallsBackToCompactWhenNarrow(t *testing.T) {
 	}
 	if lines := strings.Count(got, "\n") + 1; lines != 3 {
 		t.Fatalf("compact header should be one bordered line, got %d rows", lines)
+	}
+}
+
+func TestMainViewFitsTerminalWithFullLogo(t *testing.T) {
+	for _, size := range []struct {
+		width  int
+		height int
+	}{
+		{100, 40},
+		{100, 34},
+		{82, 34},
+	} {
+		m := headerTestModel(t, size.width, size.height)
+		m.resize(size.width, size.height)
+		rendered := m.View()
+		if got := lipgloss.Height(rendered); got > size.height {
+			t.Fatalf("view height = %d, terminal height = %d", got, size.height)
+		}
 	}
 }
 
