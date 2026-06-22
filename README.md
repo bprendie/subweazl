@@ -10,28 +10,31 @@
 SIGNAL // SELF-HOSTED // BARE METAL
 ```
 
-Spotify is a rent trap. Apple Music is telemetry wrapped in a curated
-algorithm.
+Subweazl is a terminal-native Subsonic/Navidrome client with a private local
+vault. It is built for the daily path: connect to your server, unlock your
+vault, jump back into music, search fast, queue tracks, save private playlists,
+and generate recommendations from music the app actually knows exists.
 
-Subweazl is the exploit. It is a sovereign, terminal-native client built for
-the Subsonic API. Need a backend? Spin up Navidrome. It is a pure Go binary that
-sips RAM, serves your FLAC hoard without the legacy Java bloat, and Subweazl
-jacks straight into it. We bypass the streaming cartel completely.
+There is no local-folder library mode. Subweazl talks to the Subsonic API for
+music and uses the local vault only for private app state: play history, queue
+snapshots, private playlists, synced server metadata, deterministic recipes, and
+optional LLM curator runs.
 
-Cover art gets rendered right in the grid. `mpv` does the heavy lifting for
-playback. `ffmpeg` feeds the Harmonica VU meters so you can watch the actual
-decoded audio signal bounce on the metal.
+`mpv` handles playback. `ffmpeg` feeds the Harmonica VU meters. Cover art
+renders directly in the TUI.
 
-No Electron bloat. No subscription fees. No bullshit. Just your music.
+## Install
 
-## Forge The Binary
+Requirements:
 
-You need Go 1.25+, `mpv`, and `ffmpeg`. If you do not have them, shave the yak.
+- Go 1.25+
+- `mpv` in PATH for playback
+- `ffmpeg` in PATH for the visualizer
 
 Linux / macOS:
 
 ```sh
-SUBWEAZL_SKIP_LAUNCH=1 ./scripts/install.sh
+SUBWEAZL_SKIP_LAUNCH=1 SUBWEAZL_SKIP_LLM_SETUP=1 ./scripts/install.sh
 ```
 
 Windows:
@@ -40,85 +43,87 @@ Windows:
 powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -SkipLaunch
 ```
 
-No wizards. No corporate telemetry. The script compiles the Go binary, drops it
-into your path, and gets out of the way.
-
-Want to run it raw?
+Run from source:
 
 ```sh
 go run ./cmd/subweazl
 ```
 
-## The Connection And The Vault
+The Linux installer can offer optional LLM setup during an interactive install.
+Set `SUBWEAZL_SKIP_LLM_SETUP=1` for automated builds.
+
+## First Run
+
+Start the app:
 
 ```sh
 subweazl
 ```
 
-On first boot, Subweazl opens a connection setup screen. Enter your
-Navidrome/Subsonic server coordinates and connect. After the server is saved,
-Subweazl requires a single private vault for personal play history, queues,
-private playlists, synced server cache, and recommendation context. Optional LLM
-curation stays disabled until you configure a provider label, base URL, model,
-chat path, and context window locally. After vault
-unlock, Subweazl opens to a home screen for jumping back in or discovering
-server music quickly.
+First run is staged:
 
-We drop the config payload into `~/.config/subweazl/config.json`. We also
-cache your last played track in `~/.config/subweazl/state.json` so you boot
-right back into the vibe on the next launch.
+1. Enter your Subsonic/Navidrome server URL, username, and password.
+2. Test and save the connection.
+3. Create or unlock the single Subweazl vault.
+4. Land on Home, with jump-back-in entries and discovery shortcuts.
 
-Want to script it? Inject your credentials via environment variables to override
-the file entirely:
+Subsonic credentials are stored in `~/.config/subweazl/config.json`. The app
+state file is `~/.config/subweazl/state.json`. The encrypted vault lives under
+Subweazl's data directory as `vault.sqlite3`.
+
+For scripted runs, use environment variables:
 
 ```sh
-export SUBWEAZL_SERVER="https://navidrome.yourmetal.io"
-export SUBWEAZL_USER="your-user"
-export SUBWEAZL_PASSWORD="your-password"
+export SUBWEAZL_SERVER="<server-url>"
+export SUBWEAZL_USER="<username>"
+export SUBWEAZL_PASSWORD="<password>"
 ```
 
-## Requirements And The Stack
+## Optional LLM Curator
 
-- Go 1.25+
-- `mpv` in PATH for playback
-- `ffmpeg` in PATH for the visualizer
+AI is disabled until you explicitly configure it. Subweazl does not ship with a
+provider, model, endpoint, or server default.
 
-Subweazl is the interface; `mpv` does the heavy lifting. Cover art gets
-rendered directly in the TUI grid.
+Interactive setup:
 
-`ffmpeg` is the meter. Subweazl uses it to quietly decode a mono copy of the
-active stream and feed frequency-band energy straight into the Harmonica
-terminal bar visualizer, identical to the WeazlTunes treatment.
+```sh
+subweazl --configure-llm
+```
 
-Pure Go. No CGO yak-shaving, no databases, and no native extension puzzle boxes.
-If Go can build Bubble Tea apps on your metal, it can build this.
+The setup asks for a provider label, base URL, chat completion path, optional
+model-list path, model name, context window, and optional API key. Blank provider
+label disables AI.
 
-## Hardware Interrupts
+The curator only receives vaulted cache candidates and summary context. It must
+return cached track IDs, and Subweazl validates every returned ID before building
+a queue. Invented or unknown IDs are rejected. Run metadata is stored encrypted
+in the vault.
 
-Mouse clicks are dead here. The BBS relies on hotkeys.
+## Daily Controls
 
-The Network:
+Network and discovery:
 
 - `h`: home / jump back in
-- `1`: newest albums (Subsonic/Navidrome)
-- `2`: playlists (Subsonic/Navidrome)
-- `3`: random albums (Subsonic/Navidrome)
-- `4`: queue view
+- `1`: newest albums
+- `2`: server playlists
+- `3`: random albums
+- `4`: queue
 - `5`: private vaulted playlists
 - `y`: sync vaulted Subsonic metadata cache
 - `g`: generate deterministic queue from vaulted cache
 - `G`: curate a queue with the configured optional LLM
 - `/`: search cached tracks first, then fall back to server search
 
-Navigation And Execution:
+Navigation:
 
-- `enter`: crack open an album/playlist, fire the selected track, jump to a queue row, or load a private playlist
-- `left`: eject to the previous section
-- `esc`: kill the search prompt
+- `enter`: open an album or playlist, play a track, jump to a queue row, or load a private playlist
+- `left`: go back
+- `esc`: cancel search or go back
+- `q` / `ctrl+c`: quit
 
-The Amp:
+Playback and queue:
 
-- `space`: pause/resume the audio
+- `space`: pause/resume
 - `n` / `p`: next/previous queue track
 - `a`: enqueue the selected or playing track
 - `w`: save the current queue as a private playlist
@@ -126,15 +131,24 @@ The Amp:
 - `delete` / `backspace`: delete the selected private playlist
 - `c`: clear the queue
 - `u` / `d`: move the selected queue row up/down
-- `s`: kill the playback process
-- `r`: forge a saved station playlist from the active track
+- `s`: stop playback
+- `r`: create a saved server station playlist from the active track
 - `ctrl+r`: rename the selected server playlist, current station, or private playlist
 
-The Setup Deck:
+Setup:
 
 - `tab`: cycle input fields
 - `enter`: test and save the connection
-- `ctrl+s`: force save the payload
-- `q` / `ctrl+c`: kill the app entirely
+- `ctrl+s`: force save the connection payload
+
+## Vaulted Features
+
+- Home restores useful private state after unlock.
+- Play history is private and vaulted.
+- Queue snapshots survive restart.
+- Private playlists are local-only and do not mutate the Subsonic server.
+- Cache sync is manual, encrypted, and used for fast search and recommendations.
+- Deterministic recommendations never require AI.
+- Optional LLM recommendations are validated against cached Subsonic track IDs.
 
 Weaz the juice.
