@@ -14,7 +14,7 @@ type helpAction struct {
 
 func (m Model) helpMenu(width int) string {
 	return renderHelpMenu(width, [][]helpAction{
-		{{"1", "newest", crushGold}, {"2", "playlists", crushPink}, {"3", "random", crushMint}, {"/", "search", crushPurple}},
+		{{"h", "home", crushGold}, {"1", "newest", crushGold}, {"2", "playlists", crushPink}, {"3", "random", crushMint}, {"/", "search", crushPurple}},
 		{{"enter", "open/play", crushMint}, {"r", "station", crushPink}, {"ctrl+r", "rename", crushPurple}},
 		{{"space", "pause", crushMint}, {"s", "stop", crushGold}},
 		{{"left", "back", muted}, {"esc", "back", muted}, {"q", "quit", muted}},

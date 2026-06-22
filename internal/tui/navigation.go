@@ -26,12 +26,11 @@ func (m Model) back() (Model, tea.Cmd) {
 		return m, noop
 	}
 	if len(m.nav) == 0 {
-		if m.mode != modeNewest {
-			m.clearNav()
-			m.beginSearch("loading newest albums")
-			return m, m.loadNewest()
+		if m.mode != modeHome {
+			m.showHome()
+			return m, noop
 		}
-		m.status = "already at top level"
+		m.status = "already at home"
 		return m, noop
 	}
 	last := m.nav[len(m.nav)-1]

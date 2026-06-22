@@ -333,7 +333,7 @@ Completion notes:
 
 ### Phase 3. Jump-Back-In Home And Discovery Shell
 
-Status: pending.
+Status: complete.
 
 Goal: create the balanced daily-driver shell: immediate "jump back in" from
 vaulted state plus sidebar discovery for Subsonic browsing.
@@ -360,6 +360,29 @@ Exit criteria:
 - A user can resume something from prior private state when available.
 - A new user can still discover and play server music immediately.
 - Verification/build/install/smoke loop passes.
+
+Completion notes:
+
+- Added `modeHome` as the post-vault landing surface.
+- Added home entries for last played, recent vaulted play history, newest
+  albums, playlists, random albums, search, last queue placeholder, and private
+  playlist placeholder.
+- Added `h` as the home key and sidebar entry.
+- Updated back behavior to return to home at top level.
+- Added home action handling for resume, discovery shortcuts, search, and honest
+  Phase 4/5 placeholders.
+- Reintroduced vaulted Subsonic play-history recording now that the private vault
+  is part of onboarding.
+- Added tests for home fallbacks, last played, recent vaulted history, search
+  action, and play-history recording.
+- Updated Phase 2 vault tests to expect home after unlock.
+- `go test ./...` passed with project-local caches.
+- `go build -buildvcs=false -o /tmp/subweazl ./cmd/subweazl` passed.
+- `SUBWEAZL_SKIP_LAUNCH=1 ./scripts/install.sh` installed
+  `/home/bobp/.subweazl/bin/subweazl`.
+- Installed binary smoke test used temporary config/data paths, created and
+  unlocked a vault, landed on home, and loaded newest albums from the home
+  discovery shortcut.
 
 ### Phase 4. Queue Core
 

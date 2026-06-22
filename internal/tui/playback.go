@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/bprendie/subweazl/internal/audio"
+	"github.com/bprendie/subweazl/internal/localstore"
 	"github.com/bprendie/subweazl/internal/player"
 	"github.com/bprendie/subweazl/internal/state"
 	"github.com/bprendie/subweazl/internal/subsonic"
@@ -25,12 +26,15 @@ func (m *Model) play(track subsonic.Track) tea.Cmd {
 	m.coverArt = nil
 	m.coverErr = ""
 	stateErr := m.saveLastPlayed(track)
+	historyErr := m.recordSubsonicPlay(track)
 	meterErr := m.startMeter(stream)
 	m.status = "playing " + track.Title
 	if meterErr != nil {
 		m.err = "visualizer: " + meterErr.Error()
 	} else if stateErr != nil {
 		m.err = stateErr.Error()
+	} else if historyErr != nil {
+		m.err = historyErr.Error()
 	} else {
 		m.err = ""
 	}
@@ -44,6 +48,27 @@ func (m *Model) saveLastPlayed(track subsonic.Track) error {
 	}
 	m.appState.LastPlayed = &last
 	return state.Save(m.appState)
+}
+
+func (m *Model) recordSubsonicPlay(track subsonic.Track) error {
+	if m.vaultStore == nil || !m.vaultStore.Unlocked() {
+		return nil
+	}
+	return m.vaultStore.AddPlayHistory(localstore.PlayHistoryRecord{
+		Source:  localstore.SourceSubsonic,
+		TrackID: track.ID,
+		Payload: map[string]any{
+			"id":       track.ID,
+			"title":    track.Title,
+			"artist":   track.Artist,
+			"album":    track.Album,
+			"album_id": track.AlbumID,
+			"cover_id": coverArtID(track),
+			"duration": track.Duration,
+			"genre":    track.Genre,
+			"year":     track.Year,
+		},
+	})
 }
 
 func (m *Model) togglePause() {

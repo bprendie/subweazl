@@ -16,6 +16,7 @@ type navEntry struct {
 
 func (m Model) sidebar(width, height int) string {
 	entries := []navEntry{
+		{"h", "Home", modeHome},
 		{"1", "Newest albums", modeNewest},
 		{"2", "Playlists", modePlaylists},
 		{"3", "Random albums", modeRandomAlbums},

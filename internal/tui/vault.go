@@ -134,16 +134,9 @@ func (m Model) submitVault() (Model, tea.Cmd) {
 		m.err = err.Error()
 		return m, noop
 	}
-	m.mode = modeNewest
-	m.refreshTitle()
+	m.showHome()
 	m.status = "private vault unlocked"
-	m.err = ""
-	m.restoreLastPlayed()
-	if m.hasRestoredLastPlayed() {
-		return m, m.loadCoverArt(m.coverID)
-	}
-	m.beginSearch("loading newest albums")
-	return m, m.loadNewest()
+	return m, noop
 }
 
 func (m *Model) closeVaultStore() {

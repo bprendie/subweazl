@@ -22,7 +22,8 @@ import (
 type mode int
 
 const (
-	modeNewest mode = iota
+	modeHome mode = iota
+	modeNewest
 	modeRandomAlbums
 	modePlaylists
 	modeTracks
@@ -80,6 +81,7 @@ type item struct {
 	track    subsonic.Track
 	album    subsonic.Album
 	playlist subsonic.Playlist
+	action   string
 }
 
 type navSnapshot struct {
@@ -95,7 +97,7 @@ func (i item) Title() string {
 		return i.album.Name
 	case "playlist":
 		return i.playlist.Name
-	case "empty":
+	case "empty", "home":
 		return i.title
 	default:
 		return i.track.Title
@@ -108,7 +110,7 @@ func (i item) Description() string {
 		return fmt.Sprintf("%s  %d", i.album.Artist, i.album.Year)
 	case "playlist":
 		return fmt.Sprintf("%d tracks", i.playlist.Count)
-	case "empty":
+	case "empty", "home":
 		return i.desc
 	default:
 		return fmt.Sprintf("%s  %s", i.track.Artist, i.track.Album)
@@ -169,7 +171,7 @@ func New(cfg config.Config) Model {
 		input:      input,
 		vaultInput: vaultInput,
 		spinner:    newSpinner(),
-		mode:       modeNewest,
+		mode:       modeHome,
 		status:     "ready",
 		appState:   appState,
 		coverCache: map[string]image.Image{},
@@ -189,7 +191,7 @@ func New(cfg config.Config) Model {
 		m.err = err.Error()
 	}
 	if m.mode != modeVault {
-		m.restoreLastPlayed()
+		m.showHome()
 	}
 	m.refreshTitle()
 	return m
@@ -199,10 +201,7 @@ func (m Model) Init() tea.Cmd {
 	if !m.cfg.Ready() || m.mode == modeVault {
 		return tick()
 	}
-	if m.hasRestoredLastPlayed() {
-		return tea.Batch(tick(), m.loadCoverArt(m.coverID))
-	}
-	return tea.Batch(tick(), m.loadNewest())
+	return tick()
 }
 
 func newSetupInputs(cfg config.Config) []textinput.Model {
@@ -244,29 +243,10 @@ func newSpinner() spinner.Model {
 	return spinner.New(spinner.WithSpinner(spinner.Spinner{Frames: frames, FPS: time.Second / 8}))
 }
 
-func (m *Model) restoreLastPlayed() {
-	if m.mode == modeSetup || m.mode == modeVault {
-		return
-	}
-	if m.appState.LastPlayed == nil {
-		return
-	}
-	track := m.appState.LastPlayed.Track()
-	if track.ID == "" {
-		return
-	}
-	m.mode = modeLastPlayed
-	m.coverID = coverArtID(track)
-	m.list.SetItems([]list.Item{item{kind: "song", track: track}})
-	m.status = "last played: " + track.Title
-}
-
-func (m Model) hasRestoredLastPlayed() bool {
-	return m.appState.LastPlayed != nil && len(m.list.Items()) > 0
-}
-
 func (m *Model) refreshTitle() {
 	switch m.mode {
+	case modeHome:
+		m.list.Title = "home"
 	case modePlaylists:
 		m.list.Title = "playlists"
 	case modeRandomAlbums:

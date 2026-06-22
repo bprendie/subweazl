@@ -129,6 +129,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 		m.stop()
 		m.closeVaultStore()
 		return m, tea.Quit
+	case "h":
+		m.showHome()
+		return m, noop
 	case "1":
 		m.clearNav()
 		m.beginSearch("loading newest albums")
@@ -185,6 +188,8 @@ func (m Model) handleEnter() (Model, tea.Cmd) {
 	}
 	if it, ok := m.list.SelectedItem().(item); ok {
 		switch it.kind {
+		case "home":
+			return m.handleHomeAction(it)
 		case "album":
 			m.pushNav()
 			m.beginSearch("loading album")

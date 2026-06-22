@@ -38,8 +38,8 @@ func TestVaultCreateUnlocksAndLoadsNewest(t *testing.T) {
 	m.vaultInput.SetValue("thisguy47")
 	next, cmd := m.submitVault()
 	m = next
-	if m.mode != modeNewest {
-		t.Fatalf("mode = %v, want modeNewest", m.mode)
+	if m.mode != modeHome {
+		t.Fatalf("mode = %v, want modeHome", m.mode)
 	}
 	if m.vaultStore == nil || !m.vaultStore.Unlocked() {
 		t.Fatal("vault store is not unlocked")
@@ -93,8 +93,8 @@ func TestExistingVaultStartsInUnlockMode(t *testing.T) {
 	}
 	m.vaultInput.SetValue("thisguy47")
 	next, cmd := m.submitVault()
-	if next.mode != modeNewest {
-		t.Fatalf("mode = %v, want modeNewest", next.mode)
+	if next.mode != modeHome {
+		t.Fatalf("mode = %v, want modeHome", next.mode)
 	}
 	if cmd == nil {
 		t.Fatal("unlock should return a load command")

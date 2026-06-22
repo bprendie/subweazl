@@ -58,7 +58,9 @@ subweazl
 On first boot, Subweazl opens a connection setup screen. Enter your
 Navidrome/Subsonic server coordinates and connect. After the server is saved,
 Subweazl requires a single private vault for personal play history, queues,
-private playlists, synced server cache, and recommendation context.
+private playlists, synced server cache, and recommendation context. After vault
+unlock, Subweazl opens to a home screen for jumping back in or discovering
+server music quickly.
 
 We drop the config payload into `~/.config/subweazl/config.json`. We also
 cache your last played track in `~/.config/subweazl/state.json` so you boot
@@ -95,6 +97,7 @@ Mouse clicks are dead here. The BBS relies on hotkeys.
 
 The Network:
 
+- `h`: home / jump back in
 - `1`: newest albums (Subsonic/Navidrome)
 - `2`: playlists (Subsonic/Navidrome)
 - `3`: random albums (Subsonic/Navidrome)
