@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"time"
 
 	"github.com/bprendie/subweazl/internal/audio"
@@ -20,6 +21,7 @@ func (m *Model) play(track subsonic.Track) tea.Cmd {
 	m.playing = &track
 	m.playSource = stream
 	m.paused = false
+	m.playerStarted = true
 	m.trackTitle = ""
 	m.titlePoll = time.Time{}
 	m.coverID = coverArtID(track)
@@ -38,7 +40,14 @@ func (m *Model) play(track subsonic.Track) tea.Cmd {
 	} else {
 		m.err = ""
 	}
-	return m.loadCoverArt(m.coverID)
+	return tea.Batch(m.loadCoverArt(m.coverID), m.scrobble(track.ID, false))
+}
+
+func (m Model) scrobble(trackID string, submitted bool) tea.Cmd {
+	return func() tea.Msg {
+		err := m.client.Scrobble(context.Background(), trackID, submitted)
+		return scrobbleMsg{trackID: trackID, submitted: submitted, err: err}
+	}
 }
 
 func (m *Model) saveLastPlayed(track subsonic.Track) error {
@@ -97,6 +106,7 @@ func (m *Model) stop() {
 	m.playing = nil
 	m.playSource = ""
 	m.paused = false
+	m.playerStarted = false
 	m.trackTitle = ""
 	m.titlePoll = time.Time{}
 	m.coverID = ""

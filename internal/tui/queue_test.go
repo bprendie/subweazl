@@ -19,6 +19,35 @@ func TestPlaySelectedTrackBuildsQueueContext(t *testing.T) {
 	}
 }
 
+func TestPlaybackModeCycle(t *testing.T) {
+	var m Model
+	want := []playbackMode{playbackShuffle, playbackShuffleRepeat, playbackRepeat, playbackOff}
+	for _, mode := range want {
+		m.cyclePlaybackMode()
+		if m.playbackMode != mode {
+			t.Fatalf("mode = %v, want %v", m.playbackMode, mode)
+		}
+	}
+}
+
+func TestShuffleBuildsPermutationWithoutCurrentTrack(t *testing.T) {
+	m := Model{queue: playqueue.FromSnapshot(playqueue.Snapshot{
+		Tracks:  []subsonic.Track{testTrack("a"), testTrack("b"), testTrack("c")},
+		Current: 0,
+	}), playbackMode: playbackShuffle}
+	m.fillShuffleUpcoming()
+	if len(m.shuffleUpcoming) != 2 {
+		t.Fatalf("upcoming = %v, want two tracks", m.shuffleUpcoming)
+	}
+	seen := map[int]bool{}
+	for _, index := range m.shuffleUpcoming {
+		if index == 0 || seen[index] {
+			t.Fatalf("invalid shuffle permutation %v", m.shuffleUpcoming)
+		}
+		seen[index] = true
+	}
+}
+
 func TestQueueSnapshotRestoresIntoModel(t *testing.T) {
 	m := newHomeTestModel(t)
 	snapshot := playqueue.Snapshot{Tracks: []subsonic.Track{testTrack("a"), testTrack("b")}, Current: 1}

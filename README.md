@@ -109,6 +109,7 @@ Mouse clicks are dead here. The BBS relies on hotkeys.
 * `space`: Pause/resume the audio
 * `s`: Kill the playback process
 * `n` / `p`: Next/previous track in the queue
+* `m`: Cycle playback mode: off, shuffle, shuffle/repeat, repeat
 * `a`: Enqueue the selected or active track
 * `w`: Forge the current queue into a private vaulted playlist
 * `x`: Nuke the selected queue row

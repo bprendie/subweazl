@@ -92,8 +92,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.title != "" {
 			m.trackTitle = msg.title
 		}
+	case scrobbleMsg:
+		if msg.err != nil {
+			m.err = "scrobble: " + msg.err.Error()
+		}
 	case tickMsg:
 		m.drainMeter()
+		if m.playerStarted && m.isPlaying() && !m.paused && !m.player.Running() {
+			finishedID := m.playing.ID
+			m.playerStarted = false
+			var cmd tea.Cmd
+			m, cmd = m.playNext()
+			cmds = append(cmds, m.scrobble(finishedID, true), cmd)
+		}
 		m.visualizer.Step(m.isPlaying() && !m.paused, m.energy)
 		if m.isPlaying() && !m.paused && time.Time(msg).Sub(m.titlePoll) > 2*time.Second {
 			m.titlePoll = time.Time(msg)
@@ -178,6 +189,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 		return m.playNext()
 	case "p":
 		return m.playPrevious()
+	case "m":
+		m.cyclePlaybackMode()
+		return m, noop
 	case "a":
 		return m.enqueueSelected()
 	case "x":

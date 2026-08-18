@@ -36,7 +36,17 @@ func (m Model) playBar(width int) string {
 	if artist != "" {
 		meta = artist + " - " + title
 	}
-	maxMeta := max(8, width-lipgloss.Width(left)-lipgloss.Width(coverBadge)-8)
-	line := fmt.Sprintf("%s  %s  %s", left, gradientText(ansi.Truncate(meta, maxMeta, "..."), trackStops), coverBadge)
+	controls := playbackControls(m.playbackModeLabel())
+	maxMeta := max(8, width-lipgloss.Width(left)-lipgloss.Width(controls)-lipgloss.Width(coverBadge)-10)
+	line := fmt.Sprintf("%s  %s  %s  %s", left, controls, gradientText(ansi.Truncate(meta, maxMeta, "..."), trackStops), coverBadge)
 	return m.styles.track.Width(width).Height(1).Render(line)
+}
+
+func playbackControls(mode string) string {
+	return strings.Join([]string{
+		lipgloss.NewStyle().Foreground(crushGold).Bold(true).Render("[p]") + " prev",
+		lipgloss.NewStyle().Foreground(crushMint).Bold(true).Render("[space]") + " play/pause",
+		lipgloss.NewStyle().Foreground(crushGold).Bold(true).Render("[n]") + " next",
+		lipgloss.NewStyle().Foreground(crushPink).Bold(true).Render("[m]") + " " + mode,
+	}, "  ")
 }

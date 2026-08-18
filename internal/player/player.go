@@ -80,6 +80,13 @@ func (p *Player) TogglePause() (bool, error) {
 	return paused, nil
 }
 
+// Running reports whether the playback process is still active.
+func (p *Player) Running() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.cmd != nil && p.cmd.Process != nil
+}
+
 func (p *Player) Title() (string, error) {
 	control, ok := p.snapshotControl()
 	if !ok {

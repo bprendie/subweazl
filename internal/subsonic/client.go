@@ -264,6 +264,22 @@ func (c Client) RenamePlaylist(ctx context.Context, id, name string) error {
 	return c.get(ctx, "updatePlaylist", url.Values{"playlistId": {id}, "name": {name}}, &out)
 }
 
+// Scrobble reports either the start of playback or a completed listen.
+// A false submission is the Subsonic "now playing" notification.
+func (c Client) Scrobble(ctx context.Context, id string, submission bool) error {
+	if id == "" {
+		return errors.New("missing track id")
+	}
+	var out struct {
+		Response response `json:"subsonic-response"`
+	}
+	v := url.Values{
+		"id":         {id},
+		"submission": {strconv.FormatBool(submission)},
+	}
+	return c.get(ctx, "scrobble", v, &out)
+}
+
 func (c Client) StreamURL(id string) string {
 	return c.endpoint("stream", url.Values{"id": {id}}).String()
 }

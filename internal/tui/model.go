@@ -22,6 +22,15 @@ import (
 
 type mode int
 
+type playbackMode int
+
+const (
+	playbackOff playbackMode = iota
+	playbackShuffle
+	playbackShuffleRepeat
+	playbackRepeat
+)
+
 const (
 	modeHome mode = iota
 	modeNewest
@@ -65,6 +74,11 @@ type Model struct {
 	queue           playqueue.Queue
 	cacheStatus     localstore.CacheStatus
 	paused          bool
+	playbackMode    playbackMode
+	shuffleUpcoming []int
+	shuffleReady    bool
+	playHistory     []int
+	playerStarted   bool
 	trackTitle      string
 	titlePoll       time.Time
 	coverID         string
@@ -149,6 +163,11 @@ type renamedMsg struct {
 	name string
 }
 type titleMsg struct{ title string }
+type scrobbleMsg struct {
+	trackID   string
+	submitted bool
+	err       error
+}
 type tickMsg time.Time
 type setupSavedMsg struct {
 	cfg    config.Config

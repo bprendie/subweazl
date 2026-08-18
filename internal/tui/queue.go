@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"math/rand"
 
 	"github.com/bprendie/subweazl/internal/playqueue"
 	"github.com/bprendie/subweazl/internal/subsonic"
@@ -80,6 +81,7 @@ func (m Model) playSelectedTrack(it item) (Model, tea.Cmd) {
 	}
 	tracks, index := m.trackContext(it.track.ID)
 	m.queue.Replace(tracks, index)
+	m.resetPlaybackTraversal()
 	m.persistQueue()
 	return m, m.play(it.track)
 }
@@ -91,15 +93,37 @@ func (m Model) playQueueIndex(index int) (Model, tea.Cmd) {
 		return m, noop
 	}
 	m.persistQueue()
+	m.resetPlaybackTraversal()
 	m.refreshQueueView()
 	return m, m.play(track)
 }
 
 func (m Model) playNext() (Model, tea.Cmd) {
-	track, ok := m.queue.Next()
+	current := m.queue.CurrentIndex()
+	var track subsonic.Track
+	var ok bool
+	if m.playbackMode == playbackShuffle || m.playbackMode == playbackShuffleRepeat {
+		if len(m.shuffleUpcoming) == 0 && (!m.shuffleReady || m.playbackMode == playbackShuffleRepeat) {
+			m.fillShuffleUpcoming()
+		}
+		if len(m.shuffleUpcoming) > 0 {
+			index := m.shuffleUpcoming[0]
+			m.shuffleUpcoming = m.shuffleUpcoming[1:]
+			track, ok = m.queue.SetCurrent(index)
+		}
+	} else {
+		track, ok = m.queue.Next()
+		if !ok && m.playbackMode == playbackRepeat {
+			track, ok = m.queue.SetCurrent(0)
+		}
+	}
 	if !ok {
+		m.stop()
 		m.status = "end of queue"
 		return m, noop
+	}
+	if current >= 0 && current != m.queue.CurrentIndex() {
+		m.playHistory = append(m.playHistory, current)
 	}
 	m.persistQueue()
 	m.refreshQueueView()
@@ -107,7 +131,18 @@ func (m Model) playNext() (Model, tea.Cmd) {
 }
 
 func (m Model) playPrevious() (Model, tea.Cmd) {
-	track, ok := m.queue.Previous()
+	var track subsonic.Track
+	var ok bool
+	if (m.playbackMode == playbackShuffle || m.playbackMode == playbackShuffleRepeat) && len(m.playHistory) > 0 {
+		last := len(m.playHistory) - 1
+		track, ok = m.queue.SetCurrent(m.playHistory[last])
+		m.playHistory = m.playHistory[:last]
+	} else {
+		track, ok = m.queue.Previous()
+		if !ok && m.playbackMode == playbackRepeat {
+			track, ok = m.queue.SetCurrent(len(m.queue.Tracks()) - 1)
+		}
+	}
 	if !ok {
 		m.status = "start of queue"
 		return m, noop
@@ -115,6 +150,51 @@ func (m Model) playPrevious() (Model, tea.Cmd) {
 	m.persistQueue()
 	m.refreshQueueView()
 	return m, m.play(track)
+}
+
+func (m *Model) cyclePlaybackMode() {
+	m.playbackMode = (m.playbackMode + 1) % 4
+	m.resetPlaybackTraversal()
+	m.status = "playback mode: " + m.playbackModeLabel()
+}
+
+func (m Model) playbackModeLabel() string {
+	switch m.playbackMode {
+	case playbackShuffle:
+		return "shuffle"
+	case playbackShuffleRepeat:
+		return "shuffle/repeat"
+	case playbackRepeat:
+		return "repeat"
+	default:
+		return "off"
+	}
+}
+
+func (m *Model) resetPlaybackTraversal() {
+	m.shuffleUpcoming = nil
+	m.shuffleReady = false
+	m.playHistory = nil
+}
+
+func (m *Model) fillShuffleUpcoming() {
+	m.shuffleReady = true
+	tracks := m.queue.Tracks()
+	if len(tracks) < 2 {
+		if len(tracks) == 1 && m.playbackMode == playbackShuffleRepeat {
+			m.shuffleUpcoming = []int{0}
+		}
+		return
+	}
+	current := m.queue.CurrentIndex()
+	indexes := make([]int, 0, len(tracks)-1)
+	for i := range tracks {
+		if i != current {
+			indexes = append(indexes, i)
+		}
+	}
+	rand.Shuffle(len(indexes), func(i, j int) { indexes[i], indexes[j] = indexes[j], indexes[i] })
+	m.shuffleUpcoming = indexes
 }
 
 func (m Model) enqueueSelected() (Model, tea.Cmd) {

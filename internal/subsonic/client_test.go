@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"path"
+	"strconv"
 	"testing"
 )
 
@@ -83,6 +84,29 @@ func TestRandomAlbumsQuery(t *testing.T) {
 	}
 	if len(got) != 1 || got[0].ID != "album-1" {
 		t.Fatalf("albums = %#v", got)
+	}
+}
+
+func TestScrobbleQuery(t *testing.T) {
+	for _, submission := range []bool{false, true} {
+		t.Run(strconv.FormatBool(submission), func(t *testing.T) {
+			client := New("https://example.test", "u", "p")
+			client.http = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+				if got := path.Base(r.URL.Path); got != "scrobble.view" {
+					t.Fatalf("method = %q, want scrobble.view", got)
+				}
+				if got := r.URL.Query().Get("id"); got != "track-1" {
+					t.Fatalf("id = %q, want track-1", got)
+				}
+				if got := r.URL.Query().Get("submission"); got != strconv.FormatBool(submission) {
+					t.Fatalf("submission = %q, want %v", got, submission)
+				}
+				return jsonResponse(t, map[string]any{}), nil
+			})}
+			if err := client.Scrobble(context.Background(), "track-1", submission); err != nil {
+				t.Fatalf("Scrobble: %v", err)
+			}
+		})
 	}
 }
 
