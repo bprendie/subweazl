@@ -16,7 +16,7 @@ func (m Model) helpMenu(width int) string {
 	return renderHelpMenu(width, [][]helpAction{
 		{{"h", "home", crushGold}, {"1", "newest", crushGold}, {"2", "playlists", crushPink}, {"3", "random", crushMint}, {"4", "queue", crushGold}, {"5", "private", crushPink}, {"y", "sync", crushMint}, {"g", "generate", crushGold}, {"G", "llm", crushPink}, {"/", "search", crushPurple}},
 		{{"enter", "open/play", crushMint}, {"r", "station", crushPink}, {"ctrl+r", "rename", crushPurple}},
-		{{"n", "next", crushMint}, {"p", "prev", crushGold}, {"a", "enqueue", crushPink}, {"w", "save queue", crushGold}, {"space", "pause", crushMint}, {"s", "stop", crushGold}},
+		{{"n", "next", crushMint}, {"p", "prev", crushGold}, {"m", "mode", crushPink}, {"a", "enqueue", crushPink}, {"w", "save queue", crushGold}, {"space", "pause", crushMint}, {"s", "stop", crushGold}},
 		{{"x", "remove", crushPurple}, {"del", "delete", crushPink}, {"c", "clear", crushGold}, {"u/d", "move", crushMint}, {"left", "back", muted}, {"esc", "back", muted}, {"q", "quit", muted}},
 	})
 }
