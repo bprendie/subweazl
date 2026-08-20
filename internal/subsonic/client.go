@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -262,6 +263,43 @@ func (c Client) RenamePlaylist(ctx context.Context, id, name string) error {
 		Response response `json:"subsonic-response"`
 	}
 	return c.get(ctx, "updatePlaylist", url.Values{"playlistId": {id}, "name": {name}}, &out)
+}
+
+// SaveOrReplacePlaylist creates a named server playlist or replaces every track
+// in the existing playlist with the supplied sequence.
+func (c Client) SaveOrReplacePlaylist(ctx context.Context, name string, tracks []Track) (Playlist, error) {
+	playlists, err := c.Playlists(ctx)
+	if err != nil {
+		return Playlist{}, err
+	}
+	for _, playlist := range playlists {
+		if !strings.EqualFold(strings.TrimSpace(playlist.Name), strings.TrimSpace(name)) {
+			continue
+		}
+		existing, err := c.Playlist(ctx, playlist.ID)
+		if err != nil {
+			return Playlist{}, err
+		}
+		v := url.Values{"playlistId": {playlist.ID}, "name": {name}}
+		for i := range existing {
+			v.Add("songIndexToRemove", strconv.Itoa(i))
+		}
+		for _, track := range tracks {
+			if track.ID != "" {
+				v.Add("songIdToAdd", track.ID)
+			}
+		}
+		var out struct {
+			Response response `json:"subsonic-response"`
+		}
+		if err := c.get(ctx, "updatePlaylist", v, &out); err != nil {
+			return Playlist{}, err
+		}
+		playlist.Name = name
+		playlist.Count = len(tracks)
+		return playlist, nil
+	}
+	return c.CreatePlaylist(ctx, name, tracks)
 }
 
 // Scrobble reports either the start of playback or a completed listen.

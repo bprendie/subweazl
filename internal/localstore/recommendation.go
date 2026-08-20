@@ -11,8 +11,10 @@ import (
 )
 
 type CachedTrack struct {
-	Track   subsonic.Track
-	Starred bool
+	Track      subsonic.Track
+	Starred    bool
+	New        bool
+	NewestRank int
 }
 
 type RecommendationRecipe struct {
@@ -52,7 +54,12 @@ func (s *Store) CachedSubsonicTracks(limit int) ([]CachedTrack, error) {
 			return nil, err
 		}
 		if track.ID != "" {
-			tracks = append(tracks, CachedTrack{Track: track, Starred: boolValue(payload, "starred")})
+			tracks = append(tracks, CachedTrack{
+				Track:      track,
+				Starred:    boolValue(payload, "starred"),
+				New:        boolValue(payload, "new"),
+				NewestRank: intValue(payload, "new_rank"),
+			})
 		}
 	}
 	return tracks, rows.Err()

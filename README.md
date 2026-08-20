@@ -94,8 +94,10 @@ Mouse clicks are dead here. The BBS relies on hotkeys.
 * `5`: Private vaulted playlists
 * `y`: Sync vaulted Subsonic metadata cache
 * `g`: Forge a deterministic queue from the vaulted cache
-* `G`: Command the local LLM to curate a queue
+* `G`: Build an AI Mix, or a Mood playlist from the currently playing track
+* `ctrl+l`: Configure the optional LLM curator (`L` remains an alias)
 * `/`: Search cached tracks first, fallback to the server
+* `?`: Open the full keybinding help panel
 
 **Navigation & Execution**
 

@@ -11,7 +11,7 @@ import (
 
 func (m Model) View() string {
 	contentWidth := max(20, m.width-4)
-	if m.mode == modeSetup || m.mode == modeVault {
+	if m.mode == modeSetup || m.isLLMConfigMode() || m.mode == modeVault {
 		var b strings.Builder
 		if contentWidth >= maxLineWidth(logo) {
 			b.WriteString("\n" + renderLogo(logo, contentWidth))
@@ -21,6 +21,8 @@ func (m Model) View() string {
 		b.WriteString("\n\n")
 		if m.mode == modeVault {
 			b.WriteString(m.vaultView(contentWidth))
+		} else if m.isLLMConfigMode() {
+			b.WriteString(m.llmConfigView(contentWidth))
 		} else {
 			b.WriteString(m.setupView(contentWidth))
 		}
@@ -38,7 +40,10 @@ func (m Model) appShell(width int) string {
 	bodyRenderedHeight = max(4, bodyRenderedHeight)
 	bodyHeight := max(2, bodyRenderedHeight-2)
 	body := ""
-	if width < 64 {
+	if m.helpOpen {
+		m.list.SetSize(width, max(2, bodyHeight))
+		body = m.fullHelpPopup(width, bodyHeight)
+	} else if width < 64 {
 		m.list.SetSize(width, max(2, bodyHeight))
 		body = m.mainListPane(width, bodyHeight)
 	} else {
@@ -66,6 +71,9 @@ func (m Model) appShell(width int) string {
 func (m Model) mainListPane(width, height int) string {
 	content := m.list.View()
 	style := m.styles.active
+	if m.focus == focusSidebar {
+		style = m.styles.panel
+	}
 	return style.Width(width).Height(height).Render(content)
 }
 
@@ -87,7 +95,11 @@ func (m Model) footer(width int) string {
 
 func (m Model) statusLine() string {
 	if m.searching {
-		return m.styles.status.Render(m.spinner.View() + " " + ansi.Wordwrap(m.status, max(20, m.width-6), " /_-"))
+		status := m.status
+		if m.curating {
+			status = m.curatorPhrase()
+		}
+		return m.styles.status.Render(m.spinner.View() + " " + ansi.Wordwrap(status, max(20, m.width-6), " /_-"))
 	}
 	if m.isPlaying() {
 		state := "now: "
@@ -101,6 +113,25 @@ func (m Model) statusLine() string {
 		return m.styles.status.Render(ansi.Wordwrap(state+m.playingLabel()+meter, max(20, m.width-4), " /_-"))
 	}
 	return m.styles.status.Render(ansi.Wordwrap(m.status, max(20, m.width-4), " /_-"))
+}
+
+var curatorPhrases = []string{
+	"sniffing_the_new_bin",
+	"protecting_the_vibe",
+	"checking_the_back_nine",
+	"weeding_ghost_tracks",
+	"rejecting_taxable_transitions",
+	"sequencing_the_deep_cuts",
+	"wheezing_the_playlist",
+}
+
+func (m Model) curatorPhrase() string {
+	if len(curatorPhrases) == 0 || m.curatorStarted.IsZero() {
+		return "curating_the_playlist"
+	}
+	phase := min(2, int(time.Since(m.curatorStarted)/(20*time.Second)))
+	start := int((m.curatorStarted.UnixNano() / int64(time.Millisecond)) % int64(len(curatorPhrases)))
+	return curatorPhrases[(start+phase)%len(curatorPhrases)]
 }
 
 func meterBadge(label string, color lipgloss.Color) string {

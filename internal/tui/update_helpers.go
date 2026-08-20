@@ -53,6 +53,9 @@ func (m *Model) meterError() error {
 func (m *Model) resize(width, height int) {
 	m.width = width
 	m.height = height
+	if width-4 < 64 {
+		m.focus = focusMain
+	}
 	contentWidth := max(20, width-4)
 	mainWidth := contentWidth
 	if contentWidth >= 64 {
@@ -70,6 +73,9 @@ func (m *Model) resize(width, height int) {
 }
 
 func (m Model) updateFocused(msg tea.Msg) (Model, tea.Cmd) {
+	if m.focus == focusSidebar {
+		return m, nil
+	}
 	var cmd tea.Cmd
 	if key, ok := msg.(tea.KeyMsg); ok && key.String() == " " {
 		return m, nil

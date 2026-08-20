@@ -74,6 +74,22 @@ func TestPrivatePlaylistRenameAndDelete(t *testing.T) {
 	}
 }
 
+func TestSaveOrReplacePrivatePlaylistKeepsSingleNamedPlaylist(t *testing.T) {
+	store := newUnlockedPrivatePlaylistStore(t)
+	first, err := store.SaveOrReplacePrivatePlaylist("Mood", playqueue.Snapshot{Tracks: []subsonic.Track{{ID: "seed"}, {ID: "old"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := store.SaveOrReplacePrivatePlaylist("mood", playqueue.Snapshot{Tracks: []subsonic.Track{{ID: "seed"}, {ID: "new"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	playlists, err := store.PrivatePlaylists()
+	if err != nil || len(playlists) != 1 || first.ID != second.ID || playlists[0].Tracks[1].ID != "new" || playlists[0].Name != "mood" {
+		t.Fatalf("first=%#v second=%#v playlists=%#v err=%v", first, second, playlists, err)
+	}
+}
+
 func newUnlockedPrivatePlaylistStore(t *testing.T) *Store {
 	t.Helper()
 	store := newMigratedStore(t)

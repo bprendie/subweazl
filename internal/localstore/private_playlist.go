@@ -49,6 +49,34 @@ func (s *Store) SavePrivatePlaylist(name string, snapshot playqueue.Snapshot) (P
 	return playlist, s.writePrivatePlaylist(playlist)
 }
 
+// SaveOrReplacePrivatePlaylist updates the existing case-insensitive named
+// playlist, or creates it when it does not exist.
+func (s *Store) SaveOrReplacePrivatePlaylist(name string, snapshot playqueue.Snapshot) (PrivatePlaylist, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return PrivatePlaylist{}, errors.New("private playlist name is required")
+	}
+	tracks := validPlaylistTracks(snapshot.Tracks)
+	if len(tracks) == 0 {
+		return PrivatePlaylist{}, errors.New("queue is empty")
+	}
+	playlists, err := s.PrivatePlaylists()
+	if err != nil {
+		return PrivatePlaylist{}, err
+	}
+	for _, playlist := range playlists {
+		if !strings.EqualFold(playlist.Name, name) {
+			continue
+		}
+		playlist.Name = name
+		playlist.Tracks = tracks
+		playlist.Current = clampPlaylistIndex(snapshot.Current, len(tracks))
+		playlist.Updated = time.Now().UTC().Format(time.RFC3339)
+		return playlist, s.writePrivatePlaylist(playlist)
+	}
+	return s.SavePrivatePlaylist(name, snapshot)
+}
+
 func (s *Store) RenamePrivatePlaylist(id, name string) error {
 	playlist, ok, err := s.PrivatePlaylist(id)
 	if err != nil || !ok {

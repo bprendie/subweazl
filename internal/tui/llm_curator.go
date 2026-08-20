@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -9,15 +10,48 @@ import (
 	"github.com/bprendie/subweazl/internal/llm"
 	"github.com/bprendie/subweazl/internal/localstore"
 	"github.com/bprendie/subweazl/internal/playqueue"
+	"github.com/bprendie/subweazl/internal/subsonic"
+	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 type llmQueueMsg struct {
-	result curator.Result
-	run    localstore.RecommendationRun
+	generation string
+	result     curator.Result
+	run        localstore.RecommendationRun
+	mode       curator.Mode
+	seed       subsonic.Track
+	playlist   subsonic.Playlist
+	playlists  []subsonic.Playlist
+}
+
+type curatorProgressMsg struct {
+	generation string
+	track      subsonic.Track
+	accepted   int
+	total      int
+}
+
+type moodStartedMsg struct {
+	generation string
+	playlist   subsonic.Playlist
+	playlists  []subsonic.Playlist
 }
 
 func (m Model) generateLLMQueue() (Model, tea.Cmd) {
+	return m.generateLLMCuration(curator.ModeAIMix, subsonic.Track{})
+}
+
+func (m Model) generateMoodPlaylist() (Model, tea.Cmd) {
+	seed, ok := m.moodSeed()
+	if !ok {
+		m.err = "play or queue a track before creating Mood"
+		return m, noop
+	}
+	return m.generateLLMCuration(curator.ModeMood, seed)
+}
+
+func (m Model) generateLLMCuration(mode curator.Mode, seed subsonic.Track) (Model, tea.Cmd) {
 	if !m.cfg.LLMReady() {
 		m.err = "llm curator is not configured"
 		return m, noop
@@ -26,15 +60,42 @@ func (m Model) generateLLMQueue() (Model, tea.Cmd) {
 		m.err = "private vault is locked"
 		return m, noop
 	}
-	m.beginSearch("curating queue with llm")
-	return m, m.runLLMCurator()
+	m.beginSearch("curating AI mix with llm")
+	if mode == curator.ModeMood {
+		m.status = "curating Mood from " + seed.Title
+	}
+	m.curating = true
+	m.curatorStarted = time.Now()
+	if m.curatorCancel != nil {
+		m.curatorCancel()
+	}
+	m.curatorID = fmt.Sprintf("%d", time.Now().UnixNano())
+	// Unbuffered delivery keeps final success/failure ordered behind every
+	// accepted-track UI update.
+	m.curatorEvents = make(chan tea.Msg)
+	m.moodTracks = nil
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	m.curatorCancel = cancel
+	spinnerCmd := m.spinner.Tick
+	return m, tea.Batch(spinnerCmd, m.runLLMCurator(ctx, m.curatorID, m.curatorEvents, mode, seed), waitCuratorEvent(m.curatorEvents))
 }
 
-func (m Model) runLLMCurator() tea.Cmd {
+func (m Model) moodSeed() (subsonic.Track, bool) {
+	if m.playing != nil && m.playing.ID != "" {
+		return *m.playing, true
+	}
+	if track, ok := m.queue.Current(); ok {
+		return track, true
+	}
+	return m.selectedTrack()
+}
+
+func (m Model) runLLMCurator(ctx context.Context, generation string, events chan tea.Msg, mode curator.Mode, seed subsonic.Track) tea.Cmd {
 	store := m.vaultStore
 	cfg := m.cfg.LLM
-	seed := m.recommendationSeed()
+	client := m.client
 	return func() tea.Msg {
+		defer close(events)
 		cached, err := store.CachedSubsonicTracks(0)
 		if err != nil {
 			return errMsg{err: err}
@@ -46,40 +107,232 @@ func (m Model) runLLMCurator() tea.Cmd {
 		if err != nil {
 			return errMsg{err: err}
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-		defer cancel()
-		result, err := curator.Generate(ctx, llm.New(cfg), curator.Request{
+		preferred := map[string]bool{}
+		if mode == curator.ModeMood {
+			if seed.ID == "" {
+				return errMsg{err: fmt.Errorf("play a track before creating a Mood playlist")}
+			}
+			if similar, err := client.Similar(ctx, seed, 80); err == nil {
+				for _, track := range similar {
+					preferred[track.ID] = true
+				}
+			}
+		}
+		progressive := make([]subsonic.Track, 0, 20)
+		if mode == curator.ModeMood {
+			playlist, saveErr := client.SaveOrReplacePlaylist(ctx, "Mood", []subsonic.Track{seed})
+			if saveErr != nil {
+				return errMsg{err: fmt.Errorf("start server Mood playlist: %w", saveErr)}
+			}
+			playlists, listErr := client.Playlists(ctx)
+			if listErr != nil {
+				return errMsg{err: fmt.Errorf("refresh server playlists: %w", listErr)}
+			}
+			events <- moodStartedMsg{generation: generation, playlist: playlist, playlists: playlists}
+		}
+		result, err := curator.GenerateStreaming(ctx, llm.New(cfg), curator.Request{
 			Seed:       seed,
 			Candidates: cached,
 			RecentIDs:  recent,
-			Limit:      40,
+			Preferred:  preferred,
+			Limit:      20,
+			Mode:       mode,
+		}, func(track subsonic.Track, accepted, total int) error {
+			progressive = append(progressive, track)
+			events <- curatorProgressMsg{generation: generation, track: track, accepted: accepted, total: total}
+			if mode == curator.ModeMood && accepted > 1 && (accepted%4 == 0 || accepted == total) {
+				_, err := client.SaveOrReplacePlaylist(ctx, "Mood", progressive)
+				return err
+			}
+			return nil
 		})
 		if err != nil {
+			payload := curator.RunPayload(cfg.Provider, cfg.Model, result)
+			payload["status"] = "failed"
+			payload["error"] = err.Error()
+			_, _ = store.SaveRecommendationRun(localstore.RecommendationRun{
+				Provider: cfg.Provider,
+				Model:    cfg.Model,
+				TrackIDs: result.IDs,
+				Status:   "failed",
+				Payload:  payload,
+			})
+			if errors.Is(err, context.DeadlineExceeded) {
+				err = fmt.Errorf("DJ-Weazl timed out; check the LLM server and try again")
+			}
 			return errMsg{err: err}
 		}
 		run := localstore.RecommendationRun{
 			Provider: cfg.Provider,
 			Model:    cfg.Model,
 			TrackIDs: result.IDs,
+			Status:   "complete",
 			Payload:  curator.RunPayload(cfg.Provider, cfg.Model, result),
 		}
 		run, err = store.SaveRecommendationRun(run)
 		if err != nil {
 			return errMsg{err: err}
 		}
-		return llmQueueMsg{result: result, run: run}
+		msg := llmQueueMsg{generation: generation, result: result, run: run, mode: mode, seed: seed}
+		if mode == curator.ModeMood {
+			msg.playlist, err = client.SaveOrReplacePlaylist(ctx, "Mood", result.Tracks)
+			if err != nil {
+				return errMsg{err: fmt.Errorf("save server Mood playlist: %w", err)}
+			}
+			msg.playlists, err = client.Playlists(ctx)
+			if err != nil {
+				return errMsg{err: fmt.Errorf("refresh server playlists: %w", err)}
+			}
+		}
+		return msg
+	}
+}
+
+func waitCuratorEvent(events <-chan tea.Msg) tea.Cmd {
+	return func() tea.Msg {
+		msg, ok := <-events
+		if !ok {
+			return nil
+		}
+		return msg
 	}
 }
 
 func (m Model) applyLLMQueue(msg llmQueueMsg) Model {
-	m.queue = playqueue.FromSnapshot(playqueue.Snapshot{Tracks: msg.result.Tracks, Current: 0})
+	snapshot := playqueue.Snapshot{Tracks: msg.result.Tracks, Current: 0}
+	if m.playing != nil {
+		current := -1
+		for i, track := range snapshot.Tracks {
+			if track.ID == m.playing.ID {
+				current = i
+				break
+			}
+		}
+		if current >= 0 {
+			snapshot.Current = current
+		} else {
+			snapshot.Tracks = append([]subsonic.Track{*m.playing}, snapshot.Tracks...)
+			snapshot.Current = 0
+		}
+	}
+	m.queue = playqueue.FromSnapshot(snapshot)
+	m.queueTitle = "AI Mix"
+	if msg.mode == curator.ModeMood {
+		m.queueTitle = "Mood"
+	}
 	m.persistQueue()
-	m.showQueue()
-	m.status = fmt.Sprintf("llm curated %d-track queue", len(msg.result.Tracks))
+	if msg.mode == curator.ModeMood {
+		items := make([]list.Item, 0, len(msg.playlists))
+		for _, playlist := range msg.playlists {
+			items = append(items, item{kind: "playlist", playlist: playlist})
+		}
+		m.clearNav()
+		m.mode = modePlaylists
+		m.refreshTitle()
+		m.list.SetItems(items)
+		for i, row := range m.list.Items() {
+			if it, ok := row.(item); ok && it.kind == "playlist" && it.playlist.ID == msg.playlist.ID {
+				m.list.Select(i)
+				break
+			}
+		}
+	} else {
+		m.showQueue()
+	}
+	m.status = fmt.Sprintf("DJ-Weazl curated %d tracks", len(msg.result.Tracks))
 	if len(msg.result.Rejected) > 0 {
 		m.status += fmt.Sprintf("; rejected %d invented ids", len(msg.result.Rejected))
 	}
+	if len(msg.result.Fallback) > 0 {
+		m.status += fmt.Sprintf("; library-filled %d slots", len(msg.result.Fallback))
+	}
 	m.err = ""
 	m.searching = false
+	m.curating = false
+	m.curatorCancel = nil
+	m.curatorID = ""
 	return m
+}
+
+func (m *Model) applyMoodStarted(msg moodStartedMsg) {
+	items := make([]list.Item, 0, len(msg.playlists))
+	for _, playlist := range msg.playlists {
+		items = append(items, item{kind: "playlist", playlist: playlist})
+	}
+	m.clearNav()
+	m.mode = modePlaylists
+	m.refreshTitle()
+	m.list.SetItems(items)
+	for i, row := range m.list.Items() {
+		if it, ok := row.(item); ok && it.kind == "playlist" && it.playlist.ID == msg.playlist.ID {
+			m.list.Select(i)
+			break
+		}
+	}
+	m.status = "Mood created on server; curating 1/20"
+}
+
+func (m *Model) applyCuratorProgress(msg curatorProgressMsg) {
+	seen := false
+	for _, track := range m.moodTracks {
+		if track.ID == msg.track.ID {
+			seen = true
+			break
+		}
+	}
+	if !seen {
+		m.moodTracks = append(m.moodTracks, msg.track)
+	}
+	m.spliceCuratorTracks()
+	m.status = fmt.Sprintf("curating Mood %d/%d", msg.accepted, msg.total)
+}
+
+func (m *Model) spliceCuratorTracks() {
+	if len(m.moodTracks) == 0 {
+		return
+	}
+	old := m.queue.Tracks()
+	current := m.queue.CurrentIndex()
+	if m.playing != nil {
+		for i, track := range old {
+			if track.ID == m.playing.ID {
+				current = i
+				break
+			}
+		}
+	}
+	var prefix []subsonic.Track
+	if current >= 0 && current < len(old) {
+		prefix = append(prefix, old[:current+1]...)
+	} else if m.playing != nil {
+		prefix = append(prefix, *m.playing)
+		current = 0
+	}
+	seen := map[string]bool{}
+	for _, track := range prefix {
+		seen[track.ID] = true
+	}
+	combined := append([]subsonic.Track(nil), prefix...)
+	for _, track := range m.moodTracks {
+		if track.ID != "" && !seen[track.ID] {
+			combined = append(combined, track)
+			seen[track.ID] = true
+		}
+	}
+	start := current + 1
+	if start < 0 {
+		start = 0
+	}
+	for _, track := range old[start:] {
+		if track.ID != "" && !seen[track.ID] {
+			combined = append(combined, track)
+			seen[track.ID] = true
+		}
+	}
+	if len(prefix) == 0 {
+		current = 0
+	}
+	m.queue.Replace(combined, current)
+	m.queueTitle = "Mood (building)"
+	m.persistQueue()
 }

@@ -81,6 +81,7 @@ func (m Model) playSelectedTrack(it item) (Model, tea.Cmd) {
 	}
 	tracks, index := m.trackContext(it.track.ID)
 	m.queue.Replace(tracks, index)
+	m.queueTitle = "queue"
 	m.resetPlaybackTraversal()
 	m.persistQueue()
 	return m, m.play(it.track)

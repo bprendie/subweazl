@@ -1,6 +1,7 @@
 package llm
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -45,7 +46,11 @@ func (c Client) Complete(ctx context.Context, messages []Message, maxTokens int)
 		"messages":    messages,
 		"temperature": 0.2,
 	}
-	if maxTokens > 0 {
+	if c.cfg.Provider == "ollama" {
+		body["stream"] = false
+		body["options"] = map[string]any{"temperature": 0.2, "num_predict": maxTokens}
+		delete(body, "temperature")
+	} else if maxTokens > 0 {
 		body["max_tokens"] = maxTokens
 	}
 	var out struct {
@@ -78,6 +83,86 @@ func (c Client) Complete(ctx context.Context, messages []Message, maxTokens int)
 		return out.Response, nil
 	}
 	return "", errors.New("llm response contained no content")
+}
+
+// StreamComplete delivers text deltas as the provider produces them. vLLM
+// uses OpenAI-compatible SSE; Ollama uses newline-delimited JSON.
+func (c Client) StreamComplete(ctx context.Context, messages []Message, maxTokens int, onDelta func(string) error) error {
+	if c.cfg.BaseURL == "" || c.cfg.Model == "" || c.cfg.ChatPath == "" {
+		return errors.New("llm is not configured")
+	}
+	body := map[string]any{"model": c.cfg.Model, "messages": messages, "stream": true}
+	if c.cfg.Provider == "ollama" {
+		body["options"] = map[string]any{"temperature": 0.2, "num_predict": maxTokens}
+	} else {
+		body["temperature"] = 0.2
+		if maxTokens > 0 {
+			body["max_tokens"] = maxTokens
+		}
+	}
+	raw, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url(c.cfg.ChatPath), bytes.NewReader(raw))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if c.cfg.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.cfg.APIKey)
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		data, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+		return fmt.Errorf("llm http %d: %s", resp.StatusCode, strings.TrimSpace(string(data)))
+	}
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 64<<10), 2<<20)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || line == "data: [DONE]" {
+			continue
+		}
+		if strings.HasPrefix(line, "data:") {
+			line = strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		}
+		var chunk struct {
+			Choices []struct {
+				Delta struct {
+					Content string `json:"content"`
+				} `json:"delta"`
+			} `json:"choices"`
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+			Response string `json:"response"`
+			Error    string `json:"error"`
+		}
+		if err := json.Unmarshal([]byte(line), &chunk); err != nil {
+			return fmt.Errorf("decode llm stream: %w", err)
+		}
+		if chunk.Error != "" {
+			return errors.New(chunk.Error)
+		}
+		delta := chunk.Response
+		if chunk.Message.Content != "" {
+			delta = chunk.Message.Content
+		}
+		if len(chunk.Choices) > 0 {
+			delta = chunk.Choices[0].Delta.Content
+		}
+		if delta != "" && onDelta != nil {
+			if err := onDelta(delta); err != nil {
+				return err
+			}
+		}
+	}
+	return scanner.Err()
 }
 
 func (c Client) FetchModels(ctx context.Context) ([]string, error) {

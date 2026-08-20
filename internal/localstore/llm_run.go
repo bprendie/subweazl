@@ -10,6 +10,7 @@ type RecommendationRun struct {
 	Provider  string         `json:"provider"`
 	Model     string         `json:"model"`
 	TrackIDs  []string       `json:"track_ids"`
+	Status    string         `json:"status,omitempty"`
 	Payload   map[string]any `json:"payload"`
 	CreatedAt string         `json:"created_at"`
 }
@@ -21,7 +22,7 @@ func (s *Store) SaveRecommendationRun(run RecommendationRun) (RecommendationRun,
 	if run.Model == "" {
 		return RecommendationRun{}, errors.New("recommendation run model is required")
 	}
-	if len(run.TrackIDs) == 0 {
+	if len(run.TrackIDs) == 0 && run.Status != "failed" {
 		return RecommendationRun{}, errors.New("recommendation run has no tracks")
 	}
 	if run.ID == "" {

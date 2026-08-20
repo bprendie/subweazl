@@ -77,6 +77,7 @@ func (m Model) loadPrivatePlaylist(it item) (Model, tea.Cmd) {
 		return m, noop
 	}
 	m.queue = playqueue.FromSnapshot(playlist.Snapshot())
+	m.queueTitle = playlist.Name
 	m.persistQueue()
 	m.showQueue()
 	m.status = fmt.Sprintf("loaded private playlist: %s", playlist.Name)

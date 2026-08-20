@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"image"
 	"time"
@@ -24,6 +25,13 @@ type mode int
 
 type playbackMode int
 
+type paneFocus int
+
+const (
+	focusMain paneFocus = iota
+	focusSidebar
+)
+
 const (
 	playbackOff playbackMode = iota
 	playbackShuffle
@@ -43,6 +51,10 @@ const (
 	modeStation
 	modeLastPlayed
 	modeSetup
+	modeLLMProvider
+	modeLLMServer
+	modeLLMLoading
+	modeLLMModel
 	modeVault
 )
 
@@ -58,6 +70,7 @@ type Model struct {
 	input           textinput.Model
 	setup           []textinput.Model
 	setupFocus      int
+	llmDraft        llmConfigDraft
 	vaultInput      textinput.Model
 	vaultStore      *localstore.Store
 	vaultStage      string
@@ -69,9 +82,16 @@ type Model struct {
 	status          string
 	err             string
 	searching       bool
+	curating        bool
+	curatorStarted  time.Time
+	curatorID       string
+	curatorEvents   chan tea.Msg
+	curatorCancel   context.CancelFunc
+	moodTracks      []subsonic.Track
 	playing         *subsonic.Track
 	playSource      string
 	queue           playqueue.Queue
+	queueTitle      string
 	cacheStatus     localstore.CacheStatus
 	paused          bool
 	playbackMode    playbackMode
@@ -92,6 +112,9 @@ type Model struct {
 	station         *subsonic.Playlist
 	width           int
 	height          int
+	helpOpen        bool
+	focus           paneFocus
+	sidebarIndex    int
 	visualizer      Visualizer
 }
 
@@ -112,6 +135,17 @@ type navSnapshot struct {
 	items  []list.Item
 	status string
 	cursor int
+}
+
+type llmConfigDraft struct {
+	ProviderType  string
+	ServerURL     string
+	Model         string
+	Models        []string
+	FetchErr      string
+	ProviderIndex int
+	ModelIndex    int
+	PreviousInput string
 }
 
 func (i item) Title() string {
@@ -173,6 +207,10 @@ type setupSavedMsg struct {
 	cfg    config.Config
 	status string
 }
+type llmModelsMsg struct {
+	models []string
+	err    error
+}
 type coverArtMsg struct {
 	id  string
 	img image.Image
@@ -208,6 +246,7 @@ func New(cfg config.Config) Model {
 		appState:   appState,
 		coverCache: map[string]image.Image{},
 		queue:      playqueue.New(),
+		queueTitle: "queue",
 		visualizer: NewVisualizer(harmonica.FPS(30)),
 	}
 	if stateErr != nil {
@@ -269,13 +308,7 @@ func newSetupInputs(cfg config.Config) []textinput.Model {
 }
 
 func newSpinner() spinner.Model {
-	frames := []string{
-		lipgloss.NewStyle().Foreground(crushGold).Render("●"),
-		lipgloss.NewStyle().Foreground(crushPink).Render("●"),
-		lipgloss.NewStyle().Foreground(crushPurple).Render("●"),
-		lipgloss.NewStyle().Foreground(crushMint).Render("●"),
-	}
-	return spinner.New(spinner.WithSpinner(spinner.Spinner{Frames: frames, FPS: time.Second / 8}))
+	return spinner.New(spinner.WithSpinner(spinner.Jump), spinner.WithStyle(lipgloss.NewStyle().Foreground(crushPink)))
 }
 
 func (m *Model) refreshTitle() {
@@ -291,7 +324,7 @@ func (m *Model) refreshTitle() {
 	case modeSearch:
 		m.list.Title = "search results"
 	case modeQueue:
-		m.list.Title = "queue"
+		m.list.Title = m.queueTitle
 	case modePrivatePlaylists:
 		m.list.Title = "private playlists"
 	case modeStation:
@@ -300,6 +333,8 @@ func (m *Model) refreshTitle() {
 		m.list.Title = "last played"
 	case modeSetup:
 		m.list.Title = "setup"
+	case modeLLMProvider, modeLLMServer, modeLLMLoading, modeLLMModel:
+		m.list.Title = "llm setup"
 	case modeVault:
 		m.list.Title = "private vault"
 	default:

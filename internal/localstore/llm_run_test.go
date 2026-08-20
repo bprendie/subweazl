@@ -52,3 +52,19 @@ func TestSaveRecommendationRunRequiresProviderModelAndTracks(t *testing.T) {
 		t.Fatal("expected tracks error")
 	}
 }
+
+func TestSaveFailedRecommendationRunAllowsNoTracks(t *testing.T) {
+	store := newMigratedStore(t)
+	if err := store.CreateVault("pw"); err != nil {
+		t.Fatalf("CreateVault: %v", err)
+	}
+	run, err := store.SaveRecommendationRun(RecommendationRun{
+		Provider: "test-provider",
+		Model:    "test-model",
+		Status:   "failed",
+		Payload:  map[string]any{"error": "curator exhausted repairs"},
+	})
+	if err != nil || run.ID == "" {
+		t.Fatalf("run=%#v err=%v", run, err)
+	}
+}

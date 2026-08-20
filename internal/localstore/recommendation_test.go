@@ -41,6 +41,34 @@ func TestCachedSubsonicTracksAndRecipeStorage(t *testing.T) {
 	}
 }
 
+func TestCachedSubsonicTracksRetainNewestClassification(t *testing.T) {
+	store := newMigratedStore(t)
+	if err := store.CreateVault("pw"); err != nil {
+		t.Fatalf("CreateVault: %v", err)
+	}
+	if err := store.BeginSubsonicCacheSync(); err != nil {
+		t.Fatalf("BeginSubsonicCacheSync: %v", err)
+	}
+	track := subsonic.Track{ID: "new-song", AlbumID: "new-album"}
+	if err := store.UpsertSubsonicTrackWithNewestRank(track, false, 3); err != nil {
+		t.Fatalf("UpsertSubsonicTrackWithNewestRank: %v", err)
+	}
+	tracks, err := store.CachedSubsonicTracks(0)
+	if err != nil {
+		t.Fatalf("CachedSubsonicTracks: %v", err)
+	}
+	if len(tracks) != 1 || !tracks[0].New || tracks[0].NewestRank != 3 {
+		t.Fatalf("tracks = %#v", tracks)
+	}
+	if err := store.UpsertSubsonicTrackWithNewestRank(track, false, 0); err != nil {
+		t.Fatalf("clear newest rank: %v", err)
+	}
+	tracks, err = store.CachedSubsonicTracks(0)
+	if err != nil || tracks[0].New || tracks[0].NewestRank != 0 {
+		t.Fatalf("cleared tracks = %#v err=%v", tracks, err)
+	}
+}
+
 func TestRecentSubsonicTrackIDs(t *testing.T) {
 	store := newMigratedStore(t)
 	if err := store.CreateVault("pw"); err != nil {

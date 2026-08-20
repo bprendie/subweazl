@@ -14,11 +14,76 @@ type helpAction struct {
 
 func (m Model) helpMenu(width int) string {
 	return renderHelpMenu(width, [][]helpAction{
-		{{"h", "home", crushGold}, {"1", "newest", crushGold}, {"2", "playlists", crushPink}, {"3", "random", crushMint}, {"4", "queue", crushGold}, {"5", "private", crushPink}, {"y", "sync", crushMint}, {"g", "generate", crushGold}, {"G", "llm", crushPink}, {"/", "search", crushPurple}},
-		{{"enter", "open/play", crushMint}, {"r", "station", crushPink}, {"ctrl+r", "rename", crushPurple}},
-		{{"n", "next", crushMint}, {"p", "prev", crushGold}, {"m", "mode", crushPink}, {"a", "enqueue", crushPink}, {"w", "save queue", crushGold}, {"space", "pause", crushMint}, {"s", "stop", crushGold}},
-		{{"x", "remove", crushPurple}, {"del", "delete", crushPink}, {"c", "clear", crushGold}, {"u/d", "move", crushMint}, {"left", "back", muted}, {"esc", "back", muted}, {"q", "quit", muted}},
+		{{"tab", "pane", crushPurple}, {"enter", "open/play", crushMint}, {"/", "search", crushPurple}, {"space", "play/pause", crushMint}, {"p/n", "prev/next", crushGold}, {"m", "mode", crushPink}, {"g", "queue", crushGold}, {"G", "AI Mix", crushPink}, {"M", "Mood", crushMint}, {"v", "copy playlist", crushGold}, {"?", "help", muted}, {"q", "quit", muted}},
 	})
+}
+
+func (m Model) fullHelpPopup(width, height int) string {
+	panelWidth := clampInt(width-4, 44, 92)
+	var b strings.Builder
+	b.WriteString(lipgloss.NewStyle().Foreground(crushGold).Bold(true).Render("help"))
+	b.WriteString("\n")
+	b.WriteString(m.styles.help.Render("press ? or esc to close"))
+	b.WriteString("\n\n")
+	b.WriteString(renderHelpSection("Navigation", []helpAction{
+		{"tab", "switch sidebar/list", crushPurple},
+		{"up/down", "select sidebar item", crushMint},
+		{"h", "home", crushGold},
+		{"1", "newest albums", crushGold},
+		{"2", "playlists", crushPink},
+		{"3", "random albums", crushMint},
+		{"4", "queue", crushGold},
+		{"5", "private playlists", crushPink},
+		{"/", "search", crushPurple},
+		{"left/esc", "back", muted},
+	}, panelWidth-4))
+	b.WriteString("\n\n")
+	b.WriteString(renderHelpSection("Playback", []helpAction{
+		{"enter", "open or play", crushMint},
+		{"space", "play/pause", crushMint},
+		{"n", "next track", crushMint},
+		{"p", "previous track", crushGold},
+		{"m", "playback mode", crushPink},
+		{"s", "stop", crushGold},
+		{"a", "enqueue selected", crushPink},
+	}, panelWidth-4))
+	b.WriteString("\n\n")
+	b.WriteString(renderHelpSection("Queue & Curation", []helpAction{
+		{"g", "generate deterministic queue", crushGold},
+		{"G", "generate AI Mix", crushPink},
+		{"M", "overwrite server Mood from playing/queued track", crushMint},
+		{"ctrl+l", "llm setup", crushPurple},
+		{"y", "sync encrypted cache", crushMint},
+		{"w", "save queue", crushGold},
+		{"x", "remove queue row", crushPurple},
+		{"c", "clear queue", crushGold},
+		{"u/d", "move queue row", crushMint},
+	}, panelWidth-4))
+	b.WriteString("\n\n")
+	b.WriteString(renderHelpSection("Playlists", []helpAction{
+		{"v", "copy server ↔ vault", crushMint},
+		{"r", "create station", crushPink},
+		{"ctrl+r", "rename", crushPurple},
+		{"del", "delete private playlist", crushPink},
+		{"q", "quit", muted},
+	}, panelWidth-4))
+	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, m.styles.active.Width(panelWidth).Render(b.String()))
+}
+
+func renderHelpSection(title string, actions []helpAction, width int) string {
+	var b strings.Builder
+	b.WriteString(lipgloss.NewStyle().Foreground(crushMint).Bold(true).Render(title))
+	b.WriteString("\n")
+	b.WriteString(wrapStyled(renderHelpActions(actions), width))
+	return b.String()
+}
+
+func renderHelpActions(actions []helpAction) string {
+	parts := make([]string, 0, len(actions))
+	for _, action := range actions {
+		parts = append(parts, renderHelpAction(action))
+	}
+	return strings.Join(parts, "  ")
 }
 
 func renderHelpMenu(width int, groups [][]helpAction) string {

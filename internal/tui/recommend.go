@@ -37,6 +37,7 @@ func (m Model) generateRecommendedQueue() (Model, tea.Cmd) {
 		return m, noop
 	}
 	m.queue = playqueue.FromSnapshot(playqueue.Snapshot{Tracks: result.Tracks, Current: 0})
+	m.queueTitle = "queue"
 	m.persistQueue()
 	if _, err := m.vaultStore.SaveRecommendationRecipe(recommendationRecipe(seed, result)); err != nil {
 		m.err = err.Error()

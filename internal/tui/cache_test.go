@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/bprendie/subweazl/internal/subsonic"
@@ -45,5 +46,19 @@ func TestRefreshCacheStatus(t *testing.T) {
 	m.refreshCacheStatus()
 	if m.cacheStatus.TrackCount != 1 {
 		t.Fatalf("cacheStatus = %#v", m.cacheStatus)
+	}
+}
+
+func TestNewestAlbumRanksUseNavidromeOrderAndLimit(t *testing.T) {
+	var albums []subsonic.Album
+	for i := 0; i < 25; i++ {
+		albums = append(albums, subsonic.Album{ID: fmt.Sprintf("album-%02d", i), Year: 1970 + i})
+	}
+	ranks := newestAlbumRanks(albums, 20)
+	if len(ranks) != 20 || ranks["album-00"] != 1 || ranks["album-19"] != 20 {
+		t.Fatalf("ranks = %#v", ranks)
+	}
+	if ranks["album-20"] != 0 {
+		t.Fatalf("album outside newest limit was ranked: %#v", ranks)
 	}
 }

@@ -31,6 +31,10 @@ func (s *Store) CompleteSubsonicCacheSync(presentIDs []string) error {
 }
 
 func (s *Store) UpsertSubsonicTrack(track subsonic.Track, starred bool) error {
+	return s.UpsertSubsonicTrackWithNewestRank(track, starred, 0)
+}
+
+func (s *Store) UpsertSubsonicTrackWithNewestRank(track subsonic.Track, starred bool, newestRank int) error {
 	if track.ID == "" {
 		return nil
 	}
@@ -48,6 +52,8 @@ func (s *Store) UpsertSubsonicTrack(track subsonic.Track, starred bool) error {
 			"genre":     track.Genre,
 			"year":      track.Year,
 			"starred":   starred,
+			"new":       newestRank > 0,
+			"new_rank":  newestRank,
 			"synced_at": time.Now().UTC().Format(time.RFC3339),
 		},
 	})

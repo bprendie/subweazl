@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"path"
 	"strconv"
 	"testing"
@@ -107,6 +108,38 @@ func TestScrobbleQuery(t *testing.T) {
 				t.Fatalf("Scrobble: %v", err)
 			}
 		})
+	}
+}
+
+func TestSaveOrReplacePlaylistOverwritesExistingTracks(t *testing.T) {
+	var updated url.Values
+	client := New("https://example.test", "u", "p")
+	client.http = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		switch path.Base(r.URL.Path) {
+		case "getPlaylists.view":
+			return jsonResponse(t, map[string]any{"playlists": map[string]any{"playlist": []Playlist{{ID: "mood-id", Name: "mOoD", Count: 2}}}}), nil
+		case "getPlaylist.view":
+			return jsonResponse(t, map[string]any{"playlist": map[string]any{"entry": []Track{{ID: "old-a"}, {ID: "old-b"}}}}), nil
+		case "updatePlaylist.view":
+			updated = r.URL.Query()
+			return jsonResponse(t, map[string]any{}), nil
+		default:
+			t.Fatalf("unexpected endpoint %s", r.URL.Path)
+			return nil, nil
+		}
+	})}
+	playlist, err := client.SaveOrReplacePlaylist(context.Background(), "Mood", []Track{{ID: "new-a"}, {ID: "new-b"}})
+	if err != nil {
+		t.Fatalf("replace playlist: %v", err)
+	}
+	if playlist.ID != "mood-id" || playlist.Count != 2 {
+		t.Fatalf("playlist = %#v", playlist)
+	}
+	if !sameStrings(updated["songIndexToRemove"], []string{"0", "1"}) {
+		t.Fatalf("removed indices = %#v", updated["songIndexToRemove"])
+	}
+	if !sameStrings(updated["songIdToAdd"], []string{"new-a", "new-b"}) {
+		t.Fatalf("added = %#v", updated["songIdToAdd"])
 	}
 }
 

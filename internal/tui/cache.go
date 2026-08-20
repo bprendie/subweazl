@@ -11,6 +11,7 @@ import (
 )
 
 const cacheAlbumPageSize = 200
+const newestAlbumLimit = 20
 
 type cacheSyncMsg struct {
 	tracks int
@@ -35,6 +36,11 @@ func (m Model) syncSubsonicCache() tea.Cmd {
 				}
 			}
 		}
+		newestAlbums, err := m.client.Newest(ctx)
+		if err != nil {
+			return errMsg{err}
+		}
+		newestRank := newestAlbumRanks(newestAlbums, newestAlbumLimit)
 		present := []string{}
 		seen := map[string]bool{}
 		for offset := 0; ; offset += cacheAlbumPageSize {
@@ -56,7 +62,7 @@ func (m Model) syncSubsonicCache() tea.Cmd {
 					}
 					seen[track.ID] = true
 					present = append(present, track.ID)
-					if err := m.vaultStore.UpsertSubsonicTrack(track, starred[track.ID]); err != nil {
+					if err := m.vaultStore.UpsertSubsonicTrackWithNewestRank(track, starred[track.ID], newestRank[track.AlbumID]); err != nil {
 						return errMsg{err}
 					}
 				}
@@ -74,6 +80,19 @@ func (m Model) syncSubsonicCache() tea.Cmd {
 		}
 		return cacheSyncMsg{tracks: len(present), status: status}
 	}
+}
+
+func newestAlbumRanks(albums []subsonic.Album, limit int) map[string]int {
+	ranks := map[string]int{}
+	for i, album := range albums {
+		if i >= limit {
+			break
+		}
+		if album.ID != "" {
+			ranks[album.ID] = i + 1
+		}
+	}
+	return ranks
 }
 
 func (m Model) searchCached(query string) ([]subsonic.Track, bool, error) {
