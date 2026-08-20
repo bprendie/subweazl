@@ -7,7 +7,10 @@ DJ-Weazl produces closed-world playlists using only tracks present in the synced
 ### AI Mix
 
 - Press `G` to build a general LLM mix. `G` never changes meaning based on playback state.
-- Produce exactly 20 tracks.
+- Produce exactly 40 tracks.
+- Create or overwrite the case-insensitive Navidrome server playlist named `AI Mix` after the first track validates.
+- Grow `AI Mix` in validated batches, navigate to it in area 4, and refresh an open playlist in place just like Mood.
+- Preserve current playback and use the existing upcoming queue as a safety buffer while inference runs.
 - Prioritize tracks from Navidrome's newest albums.
 - Use back-catalog and deep cuts to complete a cohesive sequence.
 - Exclude recently played tracks and avoid repeated tracks.
@@ -54,6 +57,7 @@ DJ-Weazl produces closed-world playlists using only tracks present in the synced
 - Invented, altered, stale, duplicate, and malformed IDs are rejected before queue construction.
 - A playlist never contains a track absent from that snapshot.
 - At least 20 eligible, distinct candidates must exist before generation starts.
+- Exclude spacer artifacts whose normalized title is `silence` and duration is ten seconds or less. Do not exclude full-length songs merely because their title is "Silence."
 
 ## Validation and repair loop
 

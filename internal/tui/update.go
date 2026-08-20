@@ -21,7 +21,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 	case spinner.TickMsg:
-		if m.searching {
+		if m.searching || m.curating {
 			var cmd tea.Cmd
 			m.spinner, cmd = m.spinner.Update(msg)
 			cmds = append(cmds, cmd)
@@ -30,9 +30,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.generation == m.curatorID {
 			m = m.applyLLMQueue(msg)
 		}
-	case moodStartedMsg:
+	case curatorPlaylistStartedMsg:
 		if msg.generation == m.curatorID {
-			m.applyMoodStarted(msg)
+			m.applyCuratorPlaylistStarted(msg)
 			cmds = append(cmds, waitCuratorEvent(m.curatorEvents))
 		}
 	case curatorProgressMsg:
@@ -378,10 +378,12 @@ func (m Model) handleEnter() (Model, tea.Cmd) {
 		case "home":
 			return m.handleHomeAction(it)
 		case "album":
+			m.playlistViewID = ""
 			m.pushNav()
 			m.beginSearch("loading album")
 			return m, m.loadAlbum(it.album.ID)
 		case "playlist":
+			m.playlistViewID = it.playlist.ID
 			m.pushNav()
 			m.beginSearch("loading playlist")
 			return m, m.loadPlaylist(it.playlist.ID)

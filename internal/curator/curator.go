@@ -378,7 +378,7 @@ func candidateList(cached []localstore.CachedTrack, recent map[string]bool, seed
 	out := make([]localstore.CachedTrack, 0, len(cached))
 	for _, candidate := range cached {
 		id := candidate.Track.ID
-		if id == "" || seen[id] || (recent[id] && id != seedID) {
+		if id == "" || seen[id] || curatorBlacklisted(candidate.Track) || (recent[id] && id != seedID) {
 			continue
 		}
 		seen[id] = true
@@ -401,6 +401,13 @@ func candidateList(cached []localstore.CachedTrack, recent map[string]bool, seed
 		return sortKey(out[i].Track) < sortKey(out[j].Track)
 	})
 	return out
+}
+
+func curatorBlacklisted(track subsonic.Track) bool {
+	title := strings.ToLower(strings.TrimSpace(track.Title))
+	title = strings.Trim(title, "[](){}<>")
+	title = strings.TrimSpace(title)
+	return title == "silence" && track.Duration > 0 && track.Duration <= 10
 }
 
 func containsCandidate(candidates []localstore.CachedTrack, id string) bool {

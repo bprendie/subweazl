@@ -207,3 +207,26 @@ func TestStreamedStringParserWaitsForClosingQuote(t *testing.T) {
 		t.Fatalf("values=%v", got)
 	}
 }
+
+func TestCandidateListBlacklistsShortSilenceArtifacts(t *testing.T) {
+	candidates := []localstore.CachedTrack{
+		{Track: subsonic.Track{ID: "spacer", Title: "[silence]", Artist: "Bowling for Soup", Duration: 5}},
+		{Track: subsonic.Track{ID: "real", Title: "Silence", Artist: "Portishead", Duration: 300}},
+		{Track: subsonic.Track{ID: "song", Title: "A Real Song", Duration: 4}},
+	}
+	got := candidateList(candidates, nil, "", nil)
+	if len(got) != 2 || got[0].Track.ID == "spacer" || got[1].Track.ID == "spacer" {
+		t.Fatalf("candidate list = %#v", got)
+	}
+}
+
+func TestShortSilenceArtifactCannotServeAsMoodSeed(t *testing.T) {
+	seed := subsonic.Track{ID: "spacer", Title: "[silence]", Duration: 5}
+	_, err := Generate(context.Background(), &fakeClient{responses: []string{`[]`}}, Request{
+		Mode: ModeMood, Seed: seed, Limit: 1,
+		Candidates: []localstore.CachedTrack{{Track: seed}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "not available") {
+		t.Fatalf("err=%v", err)
+	}
+}

@@ -32,8 +32,9 @@ type curatorProgressMsg struct {
 	total      int
 }
 
-type moodStartedMsg struct {
+type curatorPlaylistStartedMsg struct {
 	generation string
+	name       string
 	playlist   subsonic.Playlist
 	playlists  []subsonic.Playlist
 }
@@ -73,7 +74,9 @@ func (m Model) generateLLMCuration(mode curator.Mode, seed subsonic.Track) (Mode
 	// Unbuffered delivery keeps final success/failure ordered behind every
 	// accepted-track UI update.
 	m.curatorEvents = make(chan tea.Msg)
-	m.moodTracks = nil
+	m.curatorTracks = nil
+	m.curatorPlaylistID = ""
+	m.curatorPlaylistName = curatorPlaylistName(mode)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	m.curatorCancel = cancel
 	spinnerCmd := m.spinner.Tick
@@ -108,6 +111,8 @@ func (m Model) runLLMCurator(ctx context.Context, generation string, events chan
 			return errMsg{err: err}
 		}
 		preferred := map[string]bool{}
+		playlistName := curatorPlaylistName(mode)
+		playlistLimit := curatorPlaylistLimit(mode)
 		if mode == curator.ModeMood {
 			if seed.ID == "" {
 				return errMsg{err: fmt.Errorf("play a track before creating a Mood playlist")}
@@ -118,30 +123,44 @@ func (m Model) runLLMCurator(ctx context.Context, generation string, events chan
 				}
 			}
 		}
-		progressive := make([]subsonic.Track, 0, 20)
+		progressive := make([]subsonic.Track, 0, playlistLimit)
+		started := false
 		if mode == curator.ModeMood {
-			playlist, saveErr := client.SaveOrReplacePlaylist(ctx, "Mood", []subsonic.Track{seed})
+			playlist, saveErr := client.SaveOrReplacePlaylist(ctx, playlistName, []subsonic.Track{seed})
 			if saveErr != nil {
-				return errMsg{err: fmt.Errorf("start server Mood playlist: %w", saveErr)}
+				return errMsg{err: fmt.Errorf("start server %s playlist: %w", playlistName, saveErr)}
 			}
 			playlists, listErr := client.Playlists(ctx)
 			if listErr != nil {
 				return errMsg{err: fmt.Errorf("refresh server playlists: %w", listErr)}
 			}
-			events <- moodStartedMsg{generation: generation, playlist: playlist, playlists: playlists}
+			events <- curatorPlaylistStartedMsg{generation: generation, name: playlistName, playlist: playlist, playlists: playlists}
+			started = true
 		}
 		result, err := curator.GenerateStreaming(ctx, llm.New(cfg), curator.Request{
 			Seed:       seed,
 			Candidates: cached,
 			RecentIDs:  recent,
 			Preferred:  preferred,
-			Limit:      20,
+			Limit:      playlistLimit,
 			Mode:       mode,
 		}, func(track subsonic.Track, accepted, total int) error {
 			progressive = append(progressive, track)
+			if !started {
+				playlist, saveErr := client.SaveOrReplacePlaylist(ctx, playlistName, progressive)
+				if saveErr != nil {
+					return saveErr
+				}
+				playlists, listErr := client.Playlists(ctx)
+				if listErr != nil {
+					return listErr
+				}
+				events <- curatorPlaylistStartedMsg{generation: generation, name: playlistName, playlist: playlist, playlists: playlists}
+				started = true
+			}
 			events <- curatorProgressMsg{generation: generation, track: track, accepted: accepted, total: total}
-			if mode == curator.ModeMood && accepted > 1 && (accepted%4 == 0 || accepted == total) {
-				_, err := client.SaveOrReplacePlaylist(ctx, "Mood", progressive)
+			if accepted > 1 && (accepted%4 == 0 || accepted == total) {
+				_, err := client.SaveOrReplacePlaylist(ctx, playlistName, progressive)
 				return err
 			}
 			return nil
@@ -174,10 +193,10 @@ func (m Model) runLLMCurator(ctx context.Context, generation string, events chan
 			return errMsg{err: err}
 		}
 		msg := llmQueueMsg{generation: generation, result: result, run: run, mode: mode, seed: seed}
-		if mode == curator.ModeMood {
-			msg.playlist, err = client.SaveOrReplacePlaylist(ctx, "Mood", result.Tracks)
+		if mode == curator.ModeMood || mode == curator.ModeAIMix {
+			msg.playlist, err = client.SaveOrReplacePlaylist(ctx, playlistName, result.Tracks)
 			if err != nil {
-				return errMsg{err: fmt.Errorf("save server Mood playlist: %w", err)}
+				return errMsg{err: fmt.Errorf("save server %s playlist: %w", playlistName, err)}
 			}
 			msg.playlists, err = client.Playlists(ctx)
 			if err != nil {
@@ -198,6 +217,20 @@ func waitCuratorEvent(events <-chan tea.Msg) tea.Cmd {
 	}
 }
 
+func curatorPlaylistName(mode curator.Mode) string {
+	if mode == curator.ModeMood {
+		return "Mood"
+	}
+	return "AI Mix"
+}
+
+func curatorPlaylistLimit(mode curator.Mode) int {
+	if mode == curator.ModeMood {
+		return 20
+	}
+	return 40
+}
+
 func (m Model) applyLLMQueue(msg llmQueueMsg) Model {
 	snapshot := playqueue.Snapshot{Tracks: msg.result.Tracks, Current: 0}
 	if m.playing != nil {
@@ -216,24 +249,29 @@ func (m Model) applyLLMQueue(msg llmQueueMsg) Model {
 		}
 	}
 	m.queue = playqueue.FromSnapshot(snapshot)
-	m.queueTitle = "AI Mix"
-	if msg.mode == curator.ModeMood {
-		m.queueTitle = "Mood"
-	}
+	m.queueTitle = curatorPlaylistName(msg.mode)
 	m.persistQueue()
-	if msg.mode == curator.ModeMood {
-		items := make([]list.Item, 0, len(msg.playlists))
-		for _, playlist := range msg.playlists {
-			items = append(items, item{kind: "playlist", playlist: playlist})
-		}
-		m.clearNav()
-		m.mode = modePlaylists
-		m.refreshTitle()
-		m.list.SetItems(items)
-		for i, row := range m.list.Items() {
-			if it, ok := row.(item); ok && it.kind == "playlist" && it.playlist.ID == msg.playlist.ID {
-				m.list.Select(i)
-				break
+	if msg.mode == curator.ModeMood || msg.mode == curator.ModeAIMix {
+		if m.mode == modeTracks && m.playlistViewID == msg.playlist.ID {
+			cursor := m.list.Index()
+			m.list.SetItems(trackItems(msg.result.Tracks))
+			if len(msg.result.Tracks) > 0 {
+				m.list.Select(min(cursor, len(msg.result.Tracks)-1))
+			}
+		} else {
+			items := make([]list.Item, 0, len(msg.playlists))
+			for _, playlist := range msg.playlists {
+				items = append(items, item{kind: "playlist", playlist: playlist})
+			}
+			m.clearNav()
+			m.mode = modePlaylists
+			m.refreshTitle()
+			m.list.SetItems(items)
+			for i, row := range m.list.Items() {
+				if it, ok := row.(item); ok && it.kind == "playlist" && it.playlist.ID == msg.playlist.ID {
+					m.list.Select(i)
+					break
+				}
 			}
 		}
 	} else {
@@ -254,7 +292,9 @@ func (m Model) applyLLMQueue(msg llmQueueMsg) Model {
 	return m
 }
 
-func (m *Model) applyMoodStarted(msg moodStartedMsg) {
+func (m *Model) applyCuratorPlaylistStarted(msg curatorPlaylistStartedMsg) {
+	m.curatorPlaylistID = msg.playlist.ID
+	m.curatorPlaylistName = msg.name
 	items := make([]list.Item, 0, len(msg.playlists))
 	for _, playlist := range msg.playlists {
 		items = append(items, item{kind: "playlist", playlist: playlist})
@@ -269,26 +309,52 @@ func (m *Model) applyMoodStarted(msg moodStartedMsg) {
 			break
 		}
 	}
-	m.status = "Mood created on server; curating 1/20"
+	m.status = fmt.Sprintf("%s created on server; curating", msg.name)
 }
 
 func (m *Model) applyCuratorProgress(msg curatorProgressMsg) {
 	seen := false
-	for _, track := range m.moodTracks {
+	for _, track := range m.curatorTracks {
 		if track.ID == msg.track.ID {
 			seen = true
 			break
 		}
 	}
 	if !seen {
-		m.moodTracks = append(m.moodTracks, msg.track)
+		m.curatorTracks = append(m.curatorTracks, msg.track)
 	}
+	m.refreshStreamingCuratorView(msg.accepted)
 	m.spliceCuratorTracks()
-	m.status = fmt.Sprintf("curating Mood %d/%d", msg.accepted, msg.total)
+	m.status = fmt.Sprintf("curating %s %d/%d", m.curatorPlaylistName, msg.accepted, msg.total)
+}
+
+func (m *Model) refreshStreamingCuratorView(accepted int) {
+	if m.mode == modePlaylists {
+		cursor := m.list.Index()
+		items := m.list.Items()
+		for i, row := range items {
+			it, ok := row.(item)
+			if !ok || it.kind != "playlist" || it.playlist.ID != m.curatorPlaylistID {
+				continue
+			}
+			it.playlist.Count = accepted
+			items[i] = it
+			m.list.SetItems(items)
+			m.list.Select(cursor)
+			return
+		}
+	}
+	if m.mode == modeTracks && m.playlistViewID == m.curatorPlaylistID {
+		cursor := m.list.Index()
+		m.list.SetItems(trackItems(m.curatorTracks))
+		if len(m.curatorTracks) > 0 {
+			m.list.Select(min(cursor, len(m.curatorTracks)-1))
+		}
+	}
 }
 
 func (m *Model) spliceCuratorTracks() {
-	if len(m.moodTracks) == 0 {
+	if len(m.curatorTracks) == 0 {
 		return
 	}
 	old := m.queue.Tracks()
@@ -313,7 +379,7 @@ func (m *Model) spliceCuratorTracks() {
 		seen[track.ID] = true
 	}
 	combined := append([]subsonic.Track(nil), prefix...)
-	for _, track := range m.moodTracks {
+	for _, track := range m.curatorTracks {
 		if track.ID != "" && !seen[track.ID] {
 			combined = append(combined, track)
 			seen[track.ID] = true
@@ -333,6 +399,6 @@ func (m *Model) spliceCuratorTracks() {
 		current = 0
 	}
 	m.queue.Replace(combined, current)
-	m.queueTitle = "Mood (building)"
+	m.queueTitle = m.curatorPlaylistName + " (building)"
 	m.persistQueue()
 }

@@ -3,6 +3,7 @@ package tui
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bprendie/subweazl/internal/curator"
 	"github.com/bprendie/subweazl/internal/localstore"
@@ -23,7 +24,9 @@ func TestGenerateLLMQueueRequiresConfig(t *testing.T) {
 func TestApplyLLMQueuePersistsQueue(t *testing.T) {
 	m := newHomeTestModel(t)
 	msg := llmQueueMsg{
-		mode: curator.ModeAIMix,
+		mode:      curator.ModeAIMix,
+		playlist:  subsonic.Playlist{ID: "ai-mix", Name: "AI Mix", Count: 2},
+		playlists: []subsonic.Playlist{{ID: "ai-mix", Name: "AI Mix", Count: 2}},
 		result: curator.Result{
 			Tracks: []subsonic.Track{testTrack("a"), testTrack("b")},
 			IDs:    []string{"a", "b"},
@@ -31,7 +34,7 @@ func TestApplyLLMQueuePersistsQueue(t *testing.T) {
 		run: localstore.RecommendationRun{ID: "run-a"},
 	}
 	m = m.applyLLMQueue(msg)
-	if m.mode != modeQueue {
+	if m.mode != modePlaylists {
 		t.Fatalf("mode = %v", m.mode)
 	}
 	if ids := queueIDs(m); len(ids) != 2 || ids[0] != "a" || ids[1] != "b" {
@@ -116,12 +119,102 @@ func TestMoodProgressSplicesAheadOfSafetyBuffer(t *testing.T) {
 
 func TestMoodStartedShowsServerPlaylistImmediately(t *testing.T) {
 	m := newHomeTestModel(t)
-	m.applyMoodStarted(moodStartedMsg{
+	m.applyCuratorPlaylistStarted(curatorPlaylistStartedMsg{
+		name:      "Mood",
 		playlist:  subsonic.Playlist{ID: "mood", Name: "Mood", Count: 1},
 		playlists: []subsonic.Playlist{{ID: "other", Name: "Other"}, {ID: "mood", Name: "Mood", Count: 1}},
 	})
 	selected, _ := m.list.SelectedItem().(item)
 	if m.mode != modePlaylists || selected.playlist.ID != "mood" {
 		t.Fatalf("mode=%v selected=%#v", m.mode, selected)
+	}
+}
+
+func TestMoodProgressRefreshesPlaylistCountInPlace(t *testing.T) {
+	m := newHomeTestModel(t)
+	m.applyCuratorPlaylistStarted(curatorPlaylistStartedMsg{
+		name:      "Mood",
+		playlist:  subsonic.Playlist{ID: "mood", Name: "Mood", Count: 1},
+		playlists: []subsonic.Playlist{{ID: "other", Name: "Other"}, {ID: "mood", Name: "Mood", Count: 1}},
+	})
+	m.list.Select(1)
+	m.applyCuratorProgress(curatorProgressMsg{track: testTrack("next"), accepted: 4, total: 20})
+	selected := m.list.SelectedItem().(item)
+	if selected.playlist.ID != "mood" || selected.playlist.Count != 4 || m.list.Index() != 1 {
+		t.Fatalf("selected=%#v index=%d", selected.playlist, m.list.Index())
+	}
+}
+
+func TestOpenMoodAppendsTracksWithoutLeavingView(t *testing.T) {
+	m := newHomeTestModel(t)
+	m.mode = modeTracks
+	m.playlistViewID = "mood"
+	m.curatorPlaylistID = "mood"
+	m.curatorPlaylistName = "Mood"
+	m.curatorTracks = []subsonic.Track{testTrack("seed")}
+	m.list.SetItems(trackItems(m.curatorTracks))
+	m.applyCuratorProgress(curatorProgressMsg{track: testTrack("next"), accepted: 2, total: 20})
+	if m.mode != modeTracks || m.playlistViewID != "mood" || len(m.list.Items()) != 2 {
+		t.Fatalf("mode=%v playlist=%q items=%d", m.mode, m.playlistViewID, len(m.list.Items()))
+	}
+}
+
+func TestMoodCompletionKeepsOpenPlaylistVisible(t *testing.T) {
+	m := newHomeTestModel(t)
+	m.mode = modeTracks
+	m.playlistViewID = "mood"
+	m.curatorPlaylistID = "mood"
+	m.curatorPlaylistName = "Mood"
+	m.list.SetItems(trackItems([]subsonic.Track{testTrack("seed")}))
+	m = m.applyLLMQueue(llmQueueMsg{
+		mode:     curator.ModeMood,
+		playlist: subsonic.Playlist{ID: "mood", Name: "Mood", Count: 2},
+		result:   curator.Result{Tracks: []subsonic.Track{testTrack("seed"), testTrack("next")}},
+	})
+	if m.mode != modeTracks || len(m.list.Items()) != 2 {
+		t.Fatalf("mode=%v items=%d", m.mode, len(m.list.Items()))
+	}
+}
+
+func TestCuratorSpinnerSurvivesOrdinaryLoadCompletion(t *testing.T) {
+	m := newHomeTestModel(t)
+	m.searching = false
+	m.curating = true
+	m.curatorStarted = time.Now()
+	line := m.statusLine()
+	if !strings.Contains(line, m.spinner.View()) {
+		t.Fatalf("curator status lost spinner: %q", line)
+	}
+}
+
+func TestAIMixUsesNamedServerPlaylistAndLiveView(t *testing.T) {
+	m := newHomeTestModel(t)
+	m.applyCuratorPlaylistStarted(curatorPlaylistStartedMsg{
+		name:      "AI Mix",
+		playlist:  subsonic.Playlist{ID: "ai", Name: "AI Mix", Count: 1},
+		playlists: []subsonic.Playlist{{ID: "ai", Name: "AI Mix", Count: 1}},
+	})
+	m.applyCuratorProgress(curatorProgressMsg{track: testTrack("new-track"), accepted: 1, total: 20})
+	selected := m.list.SelectedItem().(item)
+	if m.curatorPlaylistName != "AI Mix" || m.curatorPlaylistID != "ai" || selected.playlist.Count != 1 {
+		t.Fatalf("name=%q id=%q selected=%#v", m.curatorPlaylistName, m.curatorPlaylistID, selected.playlist)
+	}
+	if m.queueTitle != "AI Mix (building)" {
+		t.Fatalf("queue title=%q", m.queueTitle)
+	}
+}
+
+func TestCuratorPlaylistNamesAreModeSpecific(t *testing.T) {
+	if got := curatorPlaylistName(curator.ModeMood); got != "Mood" {
+		t.Fatalf("Mood name=%q", got)
+	}
+	if got := curatorPlaylistName(curator.ModeAIMix); got != "AI Mix" {
+		t.Fatalf("AI Mix name=%q", got)
+	}
+	if got := curatorPlaylistLimit(curator.ModeMood); got != 20 {
+		t.Fatalf("Mood limit=%d", got)
+	}
+	if got := curatorPlaylistLimit(curator.ModeAIMix); got != 40 {
+		t.Fatalf("AI Mix limit=%d", got)
 	}
 }

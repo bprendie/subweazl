@@ -94,7 +94,7 @@ func (m Model) footer(width int) string {
 }
 
 func (m Model) statusLine() string {
-	if m.searching {
+	if m.searching || m.curating {
 		status := m.status
 		if m.curating {
 			status = m.curatorPhrase()
