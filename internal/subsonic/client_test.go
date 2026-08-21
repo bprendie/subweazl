@@ -46,6 +46,19 @@ func TestSimilarPrefersSimilarSongs(t *testing.T) {
 	}
 }
 
+func TestDeletePlaylistUsesSubsonicDeleteEndpoint(t *testing.T) {
+	client := New("https://example.test", "u", "p")
+	client.http = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if path.Base(r.URL.Path) != "deletePlaylist.view" || r.URL.Query().Get("id") != "playlist-7" {
+			t.Fatalf("request=%s query=%v", r.URL.Path, r.URL.Query())
+		}
+		return jsonResponse(t, map[string]any{}), nil
+	})}
+	if err := client.DeletePlaylist(context.Background(), "playlist-7"); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestRandomSongsByYearQuery(t *testing.T) {
 	client := New("https://example.test", "u", "p")
 	client.http = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {

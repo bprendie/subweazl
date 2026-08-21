@@ -78,6 +78,7 @@ func (m Model) loadPrivatePlaylist(it item) (Model, tea.Cmd) {
 	}
 	m.queue = playqueue.FromSnapshot(playlist.Snapshot())
 	m.queueTitle = playlist.Name
+	m.queueSourceID = playlist.ID
 	m.persistQueue()
 	m.showQueue()
 	m.status = fmt.Sprintf("loaded private playlist: %s", playlist.Name)
@@ -114,28 +115,6 @@ func (m Model) renamePrivatePlaylist(name string) (Model, tea.Cmd) {
 	}
 	m.showPrivatePlaylists()
 	m.status = "renamed private playlist"
-	return m, noop
-}
-
-func (m Model) deletePrivatePlaylist() (Model, tea.Cmd) {
-	if m.mode != modePrivatePlaylists {
-		return m, nil
-	}
-	it, ok := m.list.SelectedItem().(item)
-	if !ok || it.kind != "private_playlist" {
-		m.err = "select a private playlist to delete"
-		return m, noop
-	}
-	if m.vaultStore == nil || !m.vaultStore.Unlocked() {
-		m.err = "private vault is locked"
-		return m, noop
-	}
-	if err := m.vaultStore.DeletePrivatePlaylist(it.privatePlaylist.ID); err != nil {
-		m.err = err.Error()
-		return m, noop
-	}
-	m.showPrivatePlaylists()
-	m.status = "deleted private playlist"
 	return m, noop
 }
 

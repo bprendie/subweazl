@@ -57,6 +57,7 @@ const (
 	modeLLMModel
 	modeCuratorChoice
 	modeCuratorPrompt
+	modePlaylistDelete
 	modeVault
 )
 
@@ -74,6 +75,7 @@ type Model struct {
 	setupFocus          int
 	llmDraft            llmConfigDraft
 	curatorDraft        curatorDraft
+	playlistDelete      playlistDeleteDraft
 	activeCurator       curatorRequest
 	vaultInput          textinput.Model
 	vaultStore          *localstore.Store
@@ -99,6 +101,7 @@ type Model struct {
 	playSource          string
 	queue               playqueue.Queue
 	queueTitle          string
+	queueSourceID       string
 	cacheStatus         localstore.CacheStatus
 	paused              bool
 	playbackMode        playbackMode

@@ -64,7 +64,7 @@ func (m Model) fullHelpPopup(width, height int) string {
 		{"v", "copy server ↔ vault", crushMint},
 		{"r", "create station", crushPink},
 		{"ctrl+r", "rename", crushPurple},
-		{"del", "delete private playlist", crushPink},
+		{"del", "delete playlist", crushPink},
 		{"q", "quit", muted},
 	}, panelWidth-4))
 	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, m.styles.active.Width(panelWidth).Render(b.String()))

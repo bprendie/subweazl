@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/bprendie/subweazl/internal/subsonic"
@@ -35,15 +36,33 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.applyCuratorPlaylistStarted(msg)
 			cmds = append(cmds, waitCuratorEvent(m.curatorEvents))
 		}
+	case curatorPrivateStartedMsg:
+		if msg.generation == m.curatorID {
+			m.applyCuratorPrivateStarted(msg)
+			cmds = append(cmds, waitCuratorEvent(m.curatorEvents))
+		}
+	case curatorAnchorsStartedMsg:
+		if msg.generation == m.curatorID {
+			var cmd tea.Cmd
+			m, cmd = m.applyCuratorAnchorsStarted(msg)
+			cmds = append(cmds, cmd, waitCuratorEvent(m.curatorEvents))
+		}
 	case curatorProgressMsg:
 		if msg.generation == m.curatorID {
 			m.applyCuratorProgress(msg)
+			cmds = append(cmds, waitCuratorEvent(m.curatorEvents))
+		}
+	case curatorStageMsg:
+		if msg.generation == m.curatorID {
+			m.status = msg.status
 			cmds = append(cmds, waitCuratorEvent(m.curatorEvents))
 		}
 	case playlistCopiedMsg:
 		m.status = fmt.Sprintf("copied %s to %s", msg.name, msg.destination)
 		m.err = ""
 		m.searching = false
+	case playlistDeletedMsg:
+		m = m.applyPlaylistDeleted(msg)
 	case llmModelsMsg:
 		var cmd tea.Cmd
 		m, cmd = m.handleLLMModelsMsg(msg)
@@ -65,7 +84,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.searching = false
 		m.input.Blur()
 	case errMsg:
-		m.err = msg.err.Error()
+		if m.curating && strings.TrimSpace(m.status) != "" {
+			m.err = m.status + ": " + msg.err.Error()
+		} else {
+			m.err = msg.err.Error()
+		}
 		m.searching = false
 		m.curating = false
 	case stationMsg:
@@ -167,6 +190,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 	}
 	if m.isCuratorInputMode() {
 		return m.handleCuratorInputKey(msg)
+	}
+	if m.mode == modePlaylistDelete {
+		return m.handlePlaylistDeleteKey(msg)
 	}
 	if m.mode == modeVault {
 		return m.handleVaultKey(msg)
@@ -271,8 +297,8 @@ func (m Model) handleKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 		return m.enqueueSelected()
 	case "x":
 		return m.removeQueueSelection()
-	case "delete", "backspace":
-		return m.deletePrivatePlaylist()
+	case "delete":
+		return m.startPlaylistDelete()
 	case "c":
 		return m.clearQueue()
 	case "u":

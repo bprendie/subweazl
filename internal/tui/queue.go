@@ -81,10 +81,43 @@ func (m Model) playSelectedTrack(it item) (Model, tea.Cmd) {
 	}
 	tracks, index := m.trackContext(it.track.ID)
 	m.queue.Replace(tracks, index)
+	m.queueSourceID = ""
+	if m.mode == modeTracks {
+		m.queueSourceID = m.playlistViewID
+	}
 	m.queueTitle = "queue"
 	m.resetPlaybackTraversal()
 	m.persistQueue()
 	return m, m.play(it.track)
+}
+
+func (m *Model) followPlayingTrack() {
+	if m.playing == nil {
+		return
+	}
+	queueIndex := m.queue.CurrentIndex()
+	if m.mode == modeQueue {
+		if queueIndex >= 0 && queueIndex < len(m.list.Items()) {
+			m.list.Select(queueIndex)
+		}
+		return
+	}
+	if m.mode != modeTracks || m.playlistViewID == "" || m.playlistViewID != m.queueSourceID {
+		return
+	}
+	items := m.list.Items()
+	if queueIndex >= 0 && queueIndex < len(items) {
+		if it, ok := items[queueIndex].(item); ok && it.track.ID == m.playing.ID {
+			m.list.Select(queueIndex)
+			return
+		}
+	}
+	for i, row := range items {
+		if it, ok := row.(item); ok && it.track.ID == m.playing.ID {
+			m.list.Select(i)
+			return
+		}
+	}
 }
 
 func (m Model) playQueueIndex(index int) (Model, tea.Cmd) {

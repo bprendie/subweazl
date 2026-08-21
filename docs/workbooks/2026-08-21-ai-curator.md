@@ -1,5 +1,7 @@
 # Phase Plan — Interactive AI Curator — 2026-08-21
 
+> **Historical workbook — superseded.** This captures the private, queue-independent `G` design before live testing established immediate launch playback and authoritative-seed grounding. The canonical current contract is [`../../ai_contract.md`](../../ai_contract.md). Do not implement this workbook's “no playback or queue mutation from `G`” requirements.
+
 ## Objective
 
 Turn `G` into an intentional, private-playlist creation workflow while preserving the proven immediacy of Mood. Reject generic SaaS recommendation behavior: the user asks Weazl for a record crate, Weazl judges the library, and nothing is published to the server without an explicit command.
@@ -55,6 +57,15 @@ The chooser uses the same focused row treatment as the LLM provider wizard. Exis
 - A repeated normalized name replaces the same private playlist.
 
 ## Curation balance
+
+### Dedicated AI Mix prompt contract
+
+- Mood retains its seed-continuation system prompt; interactive AI mixes use `internal/curator/prompts/ai_mix.md`.
+- The user request is the governing eligibility filter for prompted mixes.
+- NEW is only a tie-breaker among candidates that already fit the request. It never makes an irrelevant track eligible.
+- Runtime user text, mode instructions, repair state, and candidate metadata remain in the user message rather than the system prompt.
+- `zero_tax_grindage` receives an explicit discovery-mode instruction; repair rounds receive an explicit shortfall instruction.
+- The model judges relevance and sequencing. The application remains responsible for ID validity, exact counts, quotas, diversity, and adjacency.
 
 NEW remains grounded exclusively in Navidrome's top approximately 20 newly uploaded albums.
 

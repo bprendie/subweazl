@@ -1,5 +1,7 @@
 # Phase 8: DJ-Weazl Curator
 
+> **Historical document — superseded.** This records the original server-side AI Mix and Mood remediation. Do not use its AI Mix requirements for implementation. The canonical current product contract is [`../ai_contract.md`](../ai_contract.md). Mood requirements remain useful only where they do not conflict with that contract.
+
 ## Product modes
 
 DJ-Weazl produces closed-world playlists using only tracks present in the synced, encrypted Subsonic cache.

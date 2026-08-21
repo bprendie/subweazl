@@ -21,7 +21,10 @@ const (
 )
 
 //go:embed prompts/dj_weazl_draft.md
-var systemPromptText string
+var moodSystemPromptText string
+
+//go:embed prompts/ai_mix.md
+var aiMixSystemPromptText string
 
 type Mode string
 
@@ -45,6 +48,9 @@ type Request struct {
 	Preferred  map[string]bool
 	Limit      int
 	Mode       Mode
+	UserPrompt string
+	Anchors    []subsonic.Track
+	Initial    []subsonic.Track
 }
 
 type Attempt struct {
@@ -81,6 +87,19 @@ func Generate(ctx context.Context, client Client, req Request) (Result, error) {
 	}
 	accepted := make([]string, 0, limit)
 	acceptedSet := map[string]bool{}
+	if req.Mode == ModeAIMix {
+		for _, track := range req.Initial {
+			if track.ID == "" || acceptedSet[track.ID] || !containsCandidate(candidates, track.ID) || len(accepted) == limit {
+				continue
+			}
+			accepted = append(accepted, track.ID)
+			acceptedSet[track.ID] = true
+		}
+	}
+	candidateByID := make(map[string]localstore.CachedTrack, len(candidates))
+	for _, candidate := range candidates {
+		candidateByID[candidate.Track.ID] = candidate
+	}
 	if req.Mode == ModeMood {
 		accepted = append(accepted, req.Seed.ID)
 		acceptedSet[req.Seed.ID] = true
@@ -92,7 +111,7 @@ func Generate(ctx context.Context, client Client, req Request) (Result, error) {
 		need := limit - len(accepted)
 		prompt := promptText(req, remaining, need, attempt, accepted)
 		raw, err := client.Complete(ctx, []llm.Message{
-			{Role: "system", Content: systemPrompt()},
+			{Role: "system", Content: systemPrompt(req.Mode)},
 			{Role: "user", Content: prompt},
 		}, 400)
 		if err != nil {
@@ -109,9 +128,13 @@ func Generate(ctx context.Context, client Client, req Request) (Result, error) {
 		seenResponse := map[string]bool{}
 		for _, id := range ids {
 			id = strings.TrimSpace(id)
-			if id == "" || seenResponse[id] || acceptedSet[id] || !allowed[id] {
+			candidate, exists := candidateByID[id]
+			if id == "" || seenResponse[id] || acceptedSet[id] || !allowed[id] || !exists || !selectionAllowed(candidate, accepted, candidateByID, req.Mode, limit) {
 				if id != "" {
 					rejected = append(rejected, id)
+					if exists {
+						acceptedSet[id] = true
+					}
 				}
 				continue
 			}
@@ -129,7 +152,7 @@ func Generate(ctx context.Context, client Client, req Request) (Result, error) {
 	var fallback []string
 	if len(accepted) != limit {
 		for _, candidate := range remainingCandidates(candidates, acceptedSet, req.Mode, req.Preferred) {
-			if acceptedSet[candidate.Track.ID] {
+			if acceptedSet[candidate.Track.ID] || !selectionAllowed(candidate, accepted, candidateByID, req.Mode, limit) {
 				continue
 			}
 			acceptedSet[candidate.Track.ID] = true
@@ -166,11 +189,22 @@ func GenerateStreaming(ctx context.Context, client StreamingClient, req Request,
 		return Result{}, fmt.Errorf("need %d eligible cached tracks; found %d", limit, len(candidates))
 	}
 	byID := map[string]subsonic.Track{}
+	candidateByID := map[string]localstore.CachedTrack{}
 	for _, candidate := range candidates {
 		byID[candidate.Track.ID] = candidate.Track
+		candidateByID[candidate.Track.ID] = candidate
 	}
 	accepted := make([]string, 0, limit)
 	acceptedSet := map[string]bool{}
+	if req.Mode == ModeAIMix {
+		for _, track := range req.Initial {
+			if track.ID == "" || acceptedSet[track.ID] || !containsCandidate(candidates, track.ID) || len(accepted) == limit {
+				continue
+			}
+			accepted = append(accepted, track.ID)
+			acceptedSet[track.ID] = true
+		}
+	}
 	if req.Mode == ModeMood {
 		accepted = append(accepted, req.Seed.ID)
 		acceptedSet[req.Seed.ID] = true
@@ -191,14 +225,18 @@ func GenerateStreaming(ctx context.Context, client StreamingClient, req Request,
 		var added, rejected []string
 		full := false
 		roundCtx, cancel := context.WithCancel(ctx)
-		err := client.StreamComplete(roundCtx, []llm.Message{{Role: "system", Content: systemPrompt()}, {Role: "user", Content: prompt}}, 3000, func(delta string) error {
+		err := client.StreamComplete(roundCtx, []llm.Message{{Role: "system", Content: systemPrompt(req.Mode)}, {Role: "user", Content: prompt}}, 3000, func(delta string) error {
 			raw.WriteString(delta)
 			for _, id := range parser.Feed(delta) {
 				id = strings.TrimSpace(id)
-				if id == "" || acceptedSet[id] || !allowed[id] {
+				candidate, exists := candidateByID[id]
+				if id == "" || acceptedSet[id] || !allowed[id] || !exists || !selectionAllowed(candidate, accepted, candidateByID, req.Mode, limit) {
 					if id != "" {
 						rejected = append(rejected, id)
 						allRejected = append(allRejected, id)
+						if exists {
+							acceptedSet[id] = true
+						}
 					}
 					continue
 				}
@@ -228,7 +266,7 @@ func GenerateStreaming(ctx context.Context, client StreamingClient, req Request,
 	if len(accepted) < limit {
 		for _, candidate := range remainingCandidates(candidates, acceptedSet, req.Mode, req.Preferred) {
 			id := candidate.Track.ID
-			if acceptedSet[id] {
+			if acceptedSet[id] || !selectionAllowed(candidate, accepted, candidateByID, req.Mode, limit) {
 				continue
 			}
 			acceptedSet[id] = true
@@ -303,8 +341,11 @@ func resultFrom(candidates []localstore.CachedTrack, accepted []string, attempts
 	return result
 }
 
-func systemPrompt() string {
-	return strings.TrimSpace(systemPromptText)
+func systemPrompt(mode Mode) string {
+	if mode == ModeMood {
+		return strings.TrimSpace(moodSystemPromptText)
+	}
+	return strings.TrimSpace(aiMixSystemPromptText)
 }
 
 func promptText(req Request, candidates []localstore.CachedTrack, limit, attempt int, accepted []string) string {
@@ -313,7 +354,8 @@ func promptText(req Request, candidates []localstore.CachedTrack, limit, attempt
 	if mode == "" {
 		mode = ModeAIMix
 	}
-	rows = append(rows, "MODE: "+string(mode))
+	rows = append(rows, "MODE INSTRUCTION:")
+	rows = append(rows, modeInstruction(req, limit, attempt))
 	if attempt > 1 {
 		rows = append(rows, fmt.Sprintf("REPAIR ROUND %d: return exactly %d replacement track IDs.", attempt, limit))
 		rows = append(rows, "Previously accepted IDs (never repeat): "+strings.Join(accepted, ","))
@@ -323,13 +365,25 @@ func promptText(req Request, candidates []localstore.CachedTrack, limit, attempt
 	if req.Seed.ID != "" {
 		rows = append(rows, "Seed: "+trackLine(localstore.CachedTrack{Track: req.Seed}))
 	}
-	if mode == ModeAIMix {
-		rows = append(rows, "Prioritize NEW albums, then use BACK-NINE catalog and deep cuts while protecting momentum.")
-	} else {
+	if len(req.Anchors) > 0 {
+		rows = append(rows, "AUTHORITATIVE SEED (this recording owns the mix's musical identity):")
+		rows = append(rows, trackLine(localstore.CachedTrack{Track: req.Anchors[0]}))
+	}
+	if len(req.Initial) > 1 {
+		rows = append(rows, "PROVISIONAL LAUNCH TRACKS (already playing; protect their transitions but do not use them to broaden the requested style):")
+		for _, track := range req.Initial[1:] {
+			rows = append(rows, trackLine(localstore.CachedTrack{Track: track}))
+		}
+	}
+	if strings.TrimSpace(req.UserPrompt) != "" {
+		rows = append(rows, "USER REQUEST:")
+		rows = append(rows, clean(req.UserPrompt))
+	}
+	if mode == ModeMood {
 		rows = append(rows, "Preserve the seed's mood, energy, texture, and momentum. Include compatible NEW material and BACK-NINE deep cuts.")
 	}
 	rows = append(rows, "Return only a JSON array shaped like [\"id1\",\"id2\"].")
-	rows = append(rows, "Candidates:")
+	rows = append(rows, "CANDIDATE POOL:")
 	for i, candidate := range candidates {
 		if i >= maxCandidateTracks {
 			break
@@ -337,6 +391,19 @@ func promptText(req Request, candidates []localstore.CachedTrack, limit, attempt
 		rows = append(rows, trackLine(candidate))
 	}
 	return strings.Join(rows, "\n")
+}
+
+func modeInstruction(req Request, limit, attempt int) string {
+	if req.Mode == ModeMood {
+		return fmt.Sprintf("Continue the seed's mood, energy, texture, and momentum with exactly %d additional selections.", limit)
+	}
+	if attempt > 1 {
+		return fmt.Sprintf("REPAIR ROUND: return exactly %d replacement IDs that still satisfy the user request. Never return previously accepted or rejected IDs.", limit)
+	}
+	if strings.TrimSpace(req.UserPrompt) == "" {
+		return fmt.Sprintf("ZERO_TAX_GRINDAGE: construct an opinionated, discovery-oriented, momentum-protected mix of exactly %d tracks. Weave relevant NEW uploads with BACK-NINE deep cuts; do not copy candidate order or album blocks.", limit)
+	}
+	return fmt.Sprintf("PROMPTED MIX: return exactly %d tracks. The user request governs eligibility; NEW is only a tie-breaker among equally relevant candidates.", limit)
 }
 
 func trackLine(candidate localstore.CachedTrack) string {
@@ -426,7 +493,7 @@ func remainingCandidates(candidates []localstore.CachedTrack, accepted map[strin
 			continue
 		}
 		switch {
-		case preferred[candidate.Track.ID]:
+		case mode == ModeMood && preferred[candidate.Track.ID]:
 			preferredTracks = append(preferredTracks, candidate)
 		case candidate.New:
 			newest = append(newest, candidate)
@@ -454,8 +521,20 @@ func remainingCandidates(candidates []localstore.CachedTrack, accepted map[strin
 		appendFrom(newest, 70)
 		appendFrom(backNine, 70)
 	} else {
-		appendFrom(newest, 140)
-		appendFrom(backNine, 100)
+		for len(out) < maxCandidateTracks && (len(newest) > 0 || len(backNine) > 0) {
+			appendFrom(newest, min(3, len(newest)))
+			if len(newest) >= 3 {
+				newest = newest[3:]
+			} else {
+				newest = nil
+			}
+			appendFrom(backNine, min(2, len(backNine)))
+			if len(backNine) >= 2 {
+				backNine = backNine[2:]
+			} else {
+				backNine = nil
+			}
+		}
 	}
 	// Sparse buckets donate unused capacity so the model still sees the largest
 	// useful closed-world pool available.
@@ -463,6 +542,36 @@ func remainingCandidates(candidates []localstore.CachedTrack, accepted map[strin
 	appendFrom(newest, maxCandidateTracks)
 	appendFrom(backNine, maxCandidateTracks)
 	return out
+}
+
+func selectionAllowed(candidate localstore.CachedTrack, accepted []string, byID map[string]localstore.CachedTrack, mode Mode, limit int) bool {
+	if mode != ModeAIMix {
+		return true
+	}
+	artist, album := normalized(candidate.Track.Artist), normalized(candidate.Track.Album)
+	artistCount, albumCount, newCount := 0, 0, 0
+	for _, id := range accepted {
+		prior := byID[id]
+		if prior.New {
+			newCount++
+		}
+		if artist != "" && normalized(prior.Track.Artist) == artist {
+			artistCount++
+		}
+		if album != "" && normalized(prior.Track.Album) == album {
+			albumCount++
+		}
+	}
+	if candidate.New && newCount >= limit*3/5 {
+		return false
+	}
+	if artistCount >= 3 || albumCount >= 2 {
+		return false
+	}
+	if len(accepted) > 0 && artist != "" && normalized(byID[accepted[len(accepted)-1]].Track.Artist) == artist {
+		return false
+	}
+	return true
 }
 
 func candidateIDSet(candidates []localstore.CachedTrack) map[string]bool {

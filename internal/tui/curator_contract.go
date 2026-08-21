@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/bprendie/subweazl/internal/curator"
 	"github.com/bprendie/subweazl/internal/subsonic"
@@ -72,8 +73,9 @@ func (m Model) handleCuratorInputKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 				m.err = "tell Weazl what you want"
 				return m, noop
 			}
+			request.PlaylistName = promptCuratorPlaylistName(request.Prompt)
 			m.curatorDraft.Request = request
-			return m.finishCuratorPhaseZero("request captured; prompt curation lands in phase 1")
+			return m.startCapturedCurator()
 		}
 		var cmd tea.Cmd
 		m.input, cmd = m.input.Update(msg)
@@ -91,7 +93,7 @@ func (m Model) handleCuratorInputKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 	case "enter":
 		if m.curatorDraft.Choice == 0 {
 			m.curatorDraft.Request = grindageCuratorRequest()
-			return m.finishCuratorPhaseZero("zero_tax_grindage selected; curation lands in phase 1")
+			return m.startCapturedCurator()
 		}
 		m.mode = modeCuratorPrompt
 		m.input.Prompt = "tell Weazl > "
@@ -104,14 +106,43 @@ func (m Model) handleCuratorInputKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 	return m, noop
 }
 
-func (m Model) finishCuratorPhaseZero(status string) (Model, tea.Cmd) {
+func (m Model) startCapturedCurator() (Model, tea.Cmd) {
 	request := m.curatorDraft.Request
 	m.restoreCuratorInput()
 	m, _ = m.back()
 	m.curatorDraft.Request = request
-	m.status = status
-	m.err = ""
-	return m, noop
+	return m.generateLLMCuration(request)
+}
+
+func promptCuratorPlaylistName(prompt string) string {
+	stop := map[string]bool{"a": true, "an": true, "the": true, "for": true, "me": true, "some": true, "please": true, "make": true, "track": true, "tracks": true, "song": true, "songs": true, "music": true, "playlist": true, "mix": true}
+	cleaned := strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsSpace(r) || r == '-' {
+			return r
+		}
+		return ' '
+	}, prompt)
+	var words []string
+	for _, word := range strings.Fields(cleaned) {
+		lower := strings.ToLower(word)
+		if stop[lower] {
+			continue
+		}
+		runes := []rune(lower)
+		if len(runes) > 0 {
+			runes[0] = unicode.ToUpper(runes[0])
+		}
+		words = append(words, string(runes))
+	}
+	label := strings.Join(words, " ")
+	if label == "" {
+		label = "Weazl Cut"
+	}
+	labelRunes := []rune(label)
+	if len(labelRunes) > 32 {
+		label = strings.TrimSpace(string(labelRunes[:32]))
+	}
+	return "AI Mix: " + label
 }
 
 func (m Model) cancelCuratorInput(status string) (Model, tea.Cmd) {
@@ -149,7 +180,7 @@ func (m Model) curatorInputView(width int) string {
 
 func (m Model) curatorChoiceView() string {
 	choices := []struct{ label, desc string }{
-		{"zero_tax_grindage", "40-track private crate; no queue mutation"},
+		{"zero_tax_grindage", "starts a private 40-track playable crate"},
 		{"Tell Weazl what you want", "prompt-directed private crate"},
 	}
 	rows := make([]string, 0, len(choices))

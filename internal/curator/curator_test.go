@@ -64,6 +64,47 @@ func TestGenerateValidatesReturnedIDs(t *testing.T) {
 	}
 }
 
+func TestPromptMakesUserRequestPrimaryConstraint(t *testing.T) {
+	prompt := promptText(Request{
+		Mode:       ModeAIMix,
+		UserPrompt: "synthwave tracks for focus",
+		Candidates: []localstore.CachedTrack{{Track: subsonic.Track{ID: "a", Title: "Signal", Artist: "One"}}},
+		Limit:      1,
+	}, []localstore.CachedTrack{{Track: subsonic.Track{ID: "a", Title: "Signal", Artist: "One"}}}, 1, 1, nil)
+	if !strings.Contains(prompt, "USER REQUEST:\nsynthwave tracks for focus") || !strings.Contains(prompt, "user request governs eligibility") {
+		t.Fatalf("prompt missing user constraint:\n%s", prompt)
+	}
+}
+
+func TestAIMixUsesDedicatedRequestFirstSystemPrompt(t *testing.T) {
+	aiPrompt := systemPrompt(ModeAIMix)
+	moodPrompt := systemPrompt(ModeMood)
+	if aiPrompt == moodPrompt {
+		t.Fatal("AI Mix and Mood unexpectedly share a system prompt")
+	}
+	for _, want := range []string{"USER INTENT IS LAW", "NEW IS ONLY A TIE-BREAKER", "Do not copy candidate order"} {
+		if !strings.Contains(aiPrompt, want) {
+			t.Fatalf("AI Mix system prompt missing %q", want)
+		}
+	}
+}
+
+func TestPromptedMixDoesNotInstructModelToPrioritizeNew(t *testing.T) {
+	prompt := promptText(Request{Mode: ModeAIMix, UserPrompt: "synthwave like Information Society"}, nil, 40, 1, nil)
+	if strings.Contains(prompt, "Prioritize NEW") || !strings.Contains(prompt, "NEW is only a tie-breaker") {
+		t.Fatalf("prompt has wrong priority:\n%s", prompt)
+	}
+}
+
+func TestAIMixPromptDistinguishesAuthoritativeSeedFromLaunchTracks(t *testing.T) {
+	seed := subsonic.Track{ID: "seed", Title: "Supersonic", Artist: "Oasis"}
+	launch := subsonic.Track{ID: "launch", Title: "Bittersweet Symphony", Artist: "The Verve"}
+	prompt := promptText(Request{Mode: ModeAIMix, UserPrompt: "rock like Oasis", Anchors: []subsonic.Track{seed}, Initial: []subsonic.Track{seed, launch}}, nil, 37, 1, []string{"seed", "launch"})
+	if !strings.Contains(prompt, "AUTHORITATIVE SEED") || !strings.Contains(prompt, "PROVISIONAL LAUNCH TRACKS") || !strings.Contains(prompt, "do not use them to broaden") {
+		t.Fatalf("prompt lacks anchor roles:\n%s", prompt)
+	}
+}
+
 func TestGenerateRejectsAllInventedIDs(t *testing.T) {
 	client := &fakeClient{responses: []string{`{"track_ids":["invented"]}`}}
 	result, err := Generate(context.Background(), client, Request{
@@ -164,8 +205,46 @@ func TestAIMixCandidateWindowKeepsNewAndBackNine(t *testing.T) {
 			newCount++
 		}
 	}
-	if len(window) != 240 || newCount != 140 {
+	if len(window) != 240 || newCount != 144 {
 		t.Fatalf("window=%d new=%d", len(window), newCount)
+	}
+	for i := 0; i+3 < len(window); i++ {
+		if window[i].New && window[i+1].New && window[i+2].New && window[i+3].New {
+			t.Fatalf("NEW candidates remain front-loaded at %d", i)
+		}
+	}
+}
+
+func TestAIMixSelectionEnforcesClassArtistAlbumAndAdjacencyCaps(t *testing.T) {
+	byID := map[string]localstore.CachedTrack{}
+	accepted := []string{"a1", "a2", "b1"}
+	byID["a1"] = localstore.CachedTrack{Track: subsonic.Track{ID: "a1", Artist: "Artist A", Album: "Album A"}, New: true}
+	byID["a2"] = localstore.CachedTrack{Track: subsonic.Track{ID: "a2", Artist: "Artist A", Album: "Album B"}, New: true}
+	byID["b1"] = localstore.CachedTrack{Track: subsonic.Track{ID: "b1", Artist: "Artist B", Album: "Album C"}}
+	byID["a0"] = localstore.CachedTrack{Track: subsonic.Track{ID: "a0", Artist: "Artist A", Album: "Album Z"}}
+	artistCap := localstore.CachedTrack{Track: subsonic.Track{ID: "a3", Artist: "Artist A", Album: "Album D"}}
+	byID["a3"] = artistCap
+	if selectionAllowed(artistCap, append(accepted, "a0"), byID, ModeAIMix, 40) {
+		t.Fatal("allowed fourth track by artist")
+	}
+	adjacent := localstore.CachedTrack{Track: subsonic.Track{ID: "b2", Artist: "Artist B", Album: "Album D"}}
+	if selectionAllowed(adjacent, accepted, byID, ModeAIMix, 40) {
+		t.Fatal("allowed adjacent same artist")
+	}
+	albumCap := localstore.CachedTrack{Track: subsonic.Track{ID: "a4", Artist: "Artist C", Album: "Album A"}}
+	byID["a0"] = localstore.CachedTrack{Track: subsonic.Track{ID: "a0", Artist: "Artist D", Album: "Album A"}}
+	if selectionAllowed(albumCap, append(accepted, "a0"), byID, ModeAIMix, 40) {
+		t.Fatal("allowed third track from album")
+	}
+	var newAccepted []string
+	for i := 0; i < 24; i++ {
+		id := fmt.Sprintf("new-cap-%d", i)
+		byID[id] = localstore.CachedTrack{Track: subsonic.Track{ID: id, Artist: fmt.Sprintf("Artist %d", i), Album: fmt.Sprintf("Album %d", i)}, New: true}
+		newAccepted = append(newAccepted, id)
+	}
+	tooNew := localstore.CachedTrack{Track: subsonic.Track{ID: "too-new", Artist: "Different", Album: "Different"}, New: true}
+	if selectionAllowed(tooNew, newAccepted, byID, ModeAIMix, 40) {
+		t.Fatal("allowed more than 24 NEW tracks")
 	}
 }
 
@@ -194,6 +273,39 @@ func TestGenerateStreamingStopsAfterRequiredValidIDs(t *testing.T) {
 	}
 	if client.calls != 1 {
 		t.Fatalf("calls=%d", client.calls)
+	}
+}
+
+func TestGenerateStreamingKeepsPublishedAnchorsAndRequestsOnlyBackfill(t *testing.T) {
+	anchors := []subsonic.Track{
+		{ID: "anchor-a", Artist: "Oasis", Album: "Definitely Maybe"},
+		{ID: "anchor-b", Artist: "Blur", Album: "Parklife"},
+		{ID: "anchor-c", Artist: "The Verve", Album: "Urban Hymns"},
+	}
+	candidates := make([]localstore.CachedTrack, 0, 40)
+	for _, anchor := range anchors {
+		candidates = append(candidates, localstore.CachedTrack{Track: anchor})
+	}
+	var backfill []string
+	for i := 0; i < 37; i++ {
+		id := fmt.Sprintf("fill-%02d", i)
+		backfill = append(backfill, id)
+		candidates = append(candidates, localstore.CachedTrack{Track: subsonic.Track{ID: id, Artist: fmt.Sprintf("Artist %02d", i), Album: fmt.Sprintf("Album %02d", i)}})
+	}
+	client := &fakeStreamingClient{response: jsonIDs(t, backfill)}
+	var progress []string
+	result, err := GenerateStreaming(context.Background(), client, Request{Mode: ModeAIMix, Candidates: candidates, Initial: anchors, Limit: 40}, func(track subsonic.Track, _, _ int) error {
+		progress = append(progress, track.ID)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.IDs) != 40 || len(progress) != 37 || result.IDs[0] != "anchor-a" || progress[0] != "fill-00" {
+		t.Fatalf("result=%v progress=%v", result.IDs, progress)
+	}
+	if !strings.Contains(result.Attempts[0].Prompt, "exactly 37 track IDs") {
+		t.Fatalf("prompt=%s", result.Attempts[0].Prompt)
 	}
 }
 

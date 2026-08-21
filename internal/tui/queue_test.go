@@ -99,6 +99,52 @@ func TestQueueRemoveAndMovePersist(t *testing.T) {
 	}
 }
 
+func TestPlayingTrackFollowPrefersQueueIndexForDuplicateTracks(t *testing.T) {
+	m := newHomeTestModel(t)
+	duplicate := testTrack("duplicate")
+	tracks := []subsonic.Track{duplicate, duplicate, testTrack("last")}
+	m.mode = modeTracks
+	m.playlistViewID = "playlist-1"
+	m.queueSourceID = "playlist-1"
+	m.queue.Replace(tracks, 1)
+	m.list.SetItems(trackItems(tracks))
+	m.list.Select(0)
+	m.playing = &duplicate
+	m.followPlayingTrack()
+	if m.list.Index() != 1 {
+		t.Fatalf("selected=%d, want active queue index 1", m.list.Index())
+	}
+}
+
+func TestPlayingTrackFollowDoesNotMoveDifferentOpenPlaylist(t *testing.T) {
+	m := newHomeTestModel(t)
+	playing := testTrack("playing")
+	m.mode = modeTracks
+	m.playlistViewID = "browsed-playlist"
+	m.queueSourceID = "active-playlist"
+	m.queue.Replace([]subsonic.Track{playing}, 0)
+	m.list.SetItems(trackItems([]subsonic.Track{testTrack("other"), playing}))
+	m.list.Select(0)
+	m.playing = &playing
+	m.followPlayingTrack()
+	if m.list.Index() != 0 {
+		t.Fatalf("selected=%d, should preserve manual browsing", m.list.Index())
+	}
+}
+
+func TestPlayingTrackFollowMovesQueueCursor(t *testing.T) {
+	m := newHomeTestModel(t)
+	tracks := []subsonic.Track{testTrack("first"), testTrack("playing")}
+	m.queue.Replace(tracks, 1)
+	m.showQueue()
+	m.list.Select(0)
+	m.playing = &tracks[1]
+	m.followPlayingTrack()
+	if m.list.Index() != 1 {
+		t.Fatalf("selected=%d, want 1", m.list.Index())
+	}
+}
+
 func testTrack(id string) subsonic.Track {
 	return subsonic.Track{ID: id, Title: "Track " + id, Artist: "Artist", Album: "Album"}
 }

@@ -31,6 +31,7 @@ func (m *Model) play(track subsonic.Track) tea.Cmd {
 	historyErr := m.recordSubsonicPlay(track)
 	meterErr := m.startMeter(stream)
 	m.status = "playing " + track.Title
+	m.followPlayingTrack()
 	if meterErr != nil {
 		m.err = "visualizer: " + meterErr.Error()
 	} else if stateErr != nil {

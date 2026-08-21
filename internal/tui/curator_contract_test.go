@@ -41,7 +41,7 @@ func TestGChooserAndCancelPreservePlaybackAndQueue(t *testing.T) {
 	assertIDs(t, queueIDs(next), before)
 }
 
-func TestPhaseZeroChooserCapturesAutogenerateWithoutStarting(t *testing.T) {
+func TestPhaseOneChooserStartsPrivateAutogenerate(t *testing.T) {
 	m := newHomeTestModel(t)
 	m.queue.Replace([]subsonic.Track{testTrack("keep")}, 0)
 	m, _ = m.startCuratorChoice()
@@ -52,7 +52,7 @@ func TestPhaseZeroChooserCapturesAutogenerateWithoutStarting(t *testing.T) {
 	assertIDs(t, queueIDs(m), []string{"keep"})
 }
 
-func TestPhaseZeroPromptCapturesPrivateRequest(t *testing.T) {
+func TestPhaseOnePromptCapturesNamedPrivateRequest(t *testing.T) {
 	m := newHomeTestModel(t)
 	m, _ = m.startCuratorChoice()
 	m.curatorDraft.Choice = 1
@@ -63,8 +63,20 @@ func TestPhaseZeroPromptCapturesPrivateRequest(t *testing.T) {
 	m.input.SetValue("synthwave tracks for focus")
 	m, _ = m.handleCuratorInputKey(tea.KeyMsg{Type: tea.KeyEnter})
 	request := m.curatorDraft.Request
-	if m.mode != modeHome || request.Destination != curatorDestinationVault || request.Prompt != "synthwave tracks for focus" || request.Limit != 40 {
+	if m.mode != modeHome || request.Destination != curatorDestinationVault || request.PlaylistName != "AI Mix: Synthwave Focus" || request.Prompt != "synthwave tracks for focus" || request.Limit != 40 {
 		t.Fatalf("mode=%v request=%#v", m.mode, request)
+	}
+}
+
+func TestPromptCuratorPlaylistNameIsDeterministicAndBounded(t *testing.T) {
+	if got := promptCuratorPlaylistName("please make me some synthwave tracks for focus"); got != "AI Mix: Synthwave Focus" {
+		t.Fatalf("name=%q", got)
+	}
+	if got := promptCuratorPlaylistName("the music playlist mix"); got != "AI Mix: Weazl Cut" {
+		t.Fatalf("fallback name=%q", got)
+	}
+	if got := promptCuratorPlaylistName("cinematic instrumental post rock with enormous crescendos and atmospheric guitars"); len([]rune(got)) > len([]rune("AI Mix: "))+32 {
+		t.Fatalf("unbounded name=%q", got)
 	}
 }
 

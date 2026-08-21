@@ -265,6 +265,13 @@ func (c Client) RenamePlaylist(ctx context.Context, id, name string) error {
 	return c.get(ctx, "updatePlaylist", url.Values{"playlistId": {id}, "name": {name}}, &out)
 }
 
+func (c Client) DeletePlaylist(ctx context.Context, id string) error {
+	var out struct {
+		Response response `json:"subsonic-response"`
+	}
+	return c.get(ctx, "deletePlaylist", url.Values{"id": {id}}, &out)
+}
+
 // SaveOrReplacePlaylist creates a named server playlist or replaces every track
 // in the existing playlist with the supplied sequence.
 func (c Client) SaveOrReplacePlaylist(ctx context.Context, name string, tracks []Track) (Playlist, error) {

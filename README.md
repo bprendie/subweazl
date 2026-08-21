@@ -78,7 +78,15 @@ subweazl --configure-llm
 
 The setup demands your provider label, base URL, and model details. Blanking the provider disables the AI entirely.
 
+Already inside the BBS? Hit `ctrl+l`, choose `vllm` or `ollama`, punch in the URL, and wait while Subweazl interrogates the endpoint for its models. Select one and you are armed. Uppercase `L` remains wired as the compatibility alias.
+
 **The Sandbox:** The curator only receives vaulted cache candidates and summary context. It must return cached track IDs. Subweazl validates every returned ID before building the queue. If the model hallucinates an invented or unknown ID, we reject it. Run metadata is stored encrypted in the vault. Zero algorithmic sludge.
+
+`G` opens the AI crate selector. `zero_tax_grindage` builds a 40-track private discovery mix. `Tell Weazl what you want` takes a plain-language order like `rock like Oasis`, grounds it against the actual synced library, and refuses ghost inventory. A real authoritative seed and two launch tracks hit the private playlist first, the queue gets hot immediately, and the remaining 37 cuts stream in behind playback while DJ-Weazl finishes judging the bin.
+
+`M` is the flow-state interrupt. Fire it while a track is running and Mood overwrites the server-side `Mood` playlist with 20 validated, momentum-safe cuts built around that recording. The current track never restarts. The queue keeps breathing while inference, validation, and repair grind in the background.
+
+NEW means the albums most recently uploaded to your Navidrome server—not whatever an engagement funnel wants to sell this week. AI Mix keeps the request in command, caps artist and album sprawl, protects the back nine, blacklists bogus spacer tracks, and never admits an ID that is not in the encrypted cache.
 
 ## Hardware Interrupts
 
@@ -94,7 +102,8 @@ Mouse clicks are dead here. The BBS relies on hotkeys.
 * `5`: Private vaulted playlists
 * `y`: Sync vaulted Subsonic metadata cache
 * `g`: Forge a deterministic queue from the vaulted cache
-* `G`: Build an AI Mix, or a Mood playlist from the currently playing track
+* `G`: Build and immediately play a private AI Mix
+* `M`: Extend the current track into the server-side Mood playlist without interrupting playback
 * `ctrl+l`: Configure the optional LLM curator (`L` remains an alias)
 * `/`: Search cached tracks first, fallback to the server
 * `?`: Open the full keybinding help panel
@@ -102,6 +111,7 @@ Mouse clicks are dead here. The BBS relies on hotkeys.
 **Navigation & Execution**
 
 * `enter`: Crack open an album, fire a track, jump to a queue row, or load a private playlist
+* `tab` / `shift+tab`: Jack focus between the sidebar and the active pane
 * `left`: Eject to the previous section
 * `esc`: Kill the search prompt
 * `q` / `ctrl+c`: Kill the app entirely
@@ -115,11 +125,22 @@ Mouse clicks are dead here. The BBS relies on hotkeys.
 * `a`: Enqueue the selected or active track
 * `w`: Forge the current queue into a private vaulted playlist
 * `x`: Nuke the selected queue row
-* `delete` / `backspace`: Burn the selected private playlist
+* `delete`: Delete the selected server or private playlist after `Y/N` confirmation
 * `c`: Clear the queue entirely
 * `u` / `d`: Move the selected queue row up/down
 * `r`: Forge a saved server station playlist from the active track
 * `ctrl+r`: Rename the selected server playlist, current station, or private playlist
+
+Shuffle uses a full Fisher–Yates pass—the old iPod deal. No recommendation-engine thumb on the scale. When an active playlist or queue is open, the selection gradient follows the playing row through next and previous transitions without hijacking a different playlist you are browsing.
+
+**The Playlist Airlock**
+
+* `v`: Copy a selected server playlist into the encrypted vault, or a vaulted playlist back to Navidrome
+* `delete`: Arm deletion for the selected server or private playlist
+* `Y`: Confirm the exact named target and burn it
+* `N` / `esc`: Drop the detonator; nothing changes
+
+Copies replace a case-insensitive same-named destination and never mutate the source. AI Mixes stay private until you explicitly send them across the airlock. Playlist deletion never touches the playing process or active queue.
 
 **The Setup Deck**
 

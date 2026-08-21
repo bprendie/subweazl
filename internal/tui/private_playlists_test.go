@@ -7,6 +7,7 @@ import (
 	"github.com/bprendie/subweazl/internal/playqueue"
 	"github.com/bprendie/subweazl/internal/subsonic"
 	"github.com/charmbracelet/bubbles/list"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func TestSaveQueueAsPrivatePlaylistShowsVaultList(t *testing.T) {
@@ -56,8 +57,19 @@ func TestRenameAndDeletePrivatePlaylist(t *testing.T) {
 	if !strings.Contains(privatePlaylistNames(m.list.Items()), "New") {
 		t.Fatalf("private playlist names after rename = %q", privatePlaylistNames(m.list.Items()))
 	}
-	next, _ = m.deletePrivatePlaylist()
+	next, _ = m.startPlaylistDelete()
 	m = next
+	if m.mode != modePlaylistDelete {
+		t.Fatalf("mode=%v, want delete confirmation", m.mode)
+	}
+	next, cmd := m.handlePlaylistDeleteKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	m = next
+	msg := cmd()
+	deleted, ok := msg.(playlistDeletedMsg)
+	if !ok {
+		t.Fatalf("delete msg=%T %#v", msg, msg)
+	}
+	m = m.applyPlaylistDeleted(deleted)
 	if strings.Contains(privatePlaylistNames(m.list.Items()), "New") {
 		t.Fatalf("private playlist names after delete = %q", privatePlaylistNames(m.list.Items()))
 	}

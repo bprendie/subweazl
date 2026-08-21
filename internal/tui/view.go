@@ -11,7 +11,7 @@ import (
 
 func (m Model) View() string {
 	contentWidth := max(20, m.width-4)
-	if m.mode == modeSetup || m.isLLMConfigMode() || m.isCuratorInputMode() || m.mode == modeVault {
+	if m.mode == modeSetup || m.isLLMConfigMode() || m.isCuratorInputMode() || m.mode == modePlaylistDelete || m.mode == modeVault {
 		var b strings.Builder
 		if contentWidth >= maxLineWidth(logo) {
 			b.WriteString("\n" + renderLogo(logo, contentWidth))
@@ -25,6 +25,8 @@ func (m Model) View() string {
 			b.WriteString(m.llmConfigView(contentWidth))
 		} else if m.isCuratorInputMode() {
 			b.WriteString(m.curatorInputView(contentWidth))
+		} else if m.mode == modePlaylistDelete {
+			b.WriteString(m.playlistDeleteView(contentWidth))
 		} else {
 			b.WriteString(m.setupView(contentWidth))
 		}
@@ -61,9 +63,6 @@ func (m Model) appShell(width int) string {
 	b.WriteString(body)
 	b.WriteString("\n")
 	b.WriteString(footer)
-	if m.err != "" {
-		b.WriteString("\n" + m.styles.error.Render(m.err))
-	}
 	if !m.cfg.Ready() {
 		b.WriteString("\n" + m.styles.error.Render("set SUBWEAZL_USER and SUBWEAZL_PASSWORD or edit config.json"))
 	}
@@ -96,10 +95,17 @@ func (m Model) footer(width int) string {
 }
 
 func (m Model) statusLine() string {
+	if strings.TrimSpace(m.err) != "" {
+		return m.styles.error.Render(ansi.Wordwrap("error: "+m.err, max(20, m.width-6), " /_-"))
+	}
 	if m.searching || m.curating {
 		status := m.status
 		if m.curating {
-			status = m.curatorPhrase()
+			status = strings.TrimSpace(m.status)
+			if status == "" {
+				status = "curating"
+			}
+			status += " / " + m.curatorPhrase()
 		}
 		return m.styles.status.Render(m.spinner.View() + " " + ansi.Wordwrap(status, max(20, m.width-6), " /_-"))
 	}

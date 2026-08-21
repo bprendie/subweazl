@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"github.com/bprendie/subweazl/internal/curator"
 	"github.com/bprendie/subweazl/internal/localstore"
 	"github.com/bprendie/subweazl/internal/subsonic"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func TestGenerateLLMQueueOpensChooserBeforeConfigValidation(t *testing.T) {
@@ -18,6 +20,17 @@ func TestGenerateLLMQueueOpensChooserBeforeConfigValidation(t *testing.T) {
 	}
 	if got.mode != modeCuratorChoice || got.err != "" {
 		t.Fatalf("mode=%v err=%q", got.mode, got.err)
+	}
+}
+
+func TestMoodHasNoAuthoritativeAIMixGroundingAndDoesNotPanic(t *testing.T) {
+	if got := authoritativeGrounding(nil); got != nil {
+		t.Fatalf("grounding=%v, want nil", got)
+	}
+	anchors := []subsonic.Track{testTrack("primary"), testTrack("launch")}
+	got := authoritativeGrounding(anchors)
+	if len(got) != 1 || got[0].ID != "primary" {
+		t.Fatalf("grounding=%v", got)
 	}
 }
 
@@ -183,6 +196,29 @@ func TestCuratorSpinnerSurvivesOrdinaryLoadCompletion(t *testing.T) {
 	line := m.statusLine()
 	if !strings.Contains(line, m.spinner.View()) {
 		t.Fatalf("curator status lost spinner: %q", line)
+	}
+}
+
+func TestCuratorStageUpdatesStatusWithoutEndingSpinner(t *testing.T) {
+	m := newHomeTestModel(t)
+	m.curating = true
+	m.curatorID = "generation"
+	m.curatorEvents = make(chan tea.Msg)
+	next, _ := m.Update(curatorStageMsg{generation: "generation", status: "judging 12 anchor candidates"})
+	got := next.(Model)
+	if got.status != "judging 12 anchor candidates" || !got.curating {
+		t.Fatalf("status=%q curating=%v", got.status, got.curating)
+	}
+}
+
+func TestCuratorFailureKeepsStageVisibleInStatusLine(t *testing.T) {
+	m := newHomeTestModel(t)
+	m.curating = true
+	m.status = "judging 12 anchor candidates"
+	next, _ := m.Update(errMsg{err: errors.New("established only 2/3 anchors")})
+	got := next.(Model)
+	if got.err != "judging 12 anchor candidates: established only 2/3 anchors" || !strings.Contains(got.statusLine(), "error:") {
+		t.Fatalf("err=%q status line=%q", got.err, got.statusLine())
 	}
 }
 
