@@ -10,21 +10,21 @@ import (
 	"github.com/bprendie/subweazl/internal/subsonic"
 )
 
-func TestGenerateLLMQueueRequiresConfig(t *testing.T) {
+func TestGenerateLLMQueueOpensChooserBeforeConfigValidation(t *testing.T) {
 	m := newHomeTestModel(t)
 	got, cmd := m.generateLLMQueue()
 	if cmd == nil {
 		t.Fatal("expected noop command")
 	}
-	if !strings.Contains(got.err, "not configured") {
-		t.Fatalf("err = %q", got.err)
+	if got.mode != modeCuratorChoice || got.err != "" {
+		t.Fatalf("mode=%v err=%q", got.mode, got.err)
 	}
 }
 
 func TestApplyLLMQueuePersistsQueue(t *testing.T) {
 	m := newHomeTestModel(t)
 	msg := llmQueueMsg{
-		mode:      curator.ModeAIMix,
+		request:   curatorRequest{Mode: curator.ModeAIMix, Destination: curatorDestinationServer, PlaylistName: "AI Mix", Limit: 40},
 		playlist:  subsonic.Playlist{ID: "ai-mix", Name: "AI Mix", Count: 2},
 		playlists: []subsonic.Playlist{{ID: "ai-mix", Name: "AI Mix", Count: 2}},
 		result: curator.Result{
@@ -73,8 +73,7 @@ func TestApplyMoodQueueFollowsNamedPlaylist(t *testing.T) {
 	m.paused = false
 	m.queue.Replace([]subsonic.Track{testTrack("stale")}, 0)
 	m = m.applyLLMQueue(llmQueueMsg{
-		mode:      curator.ModeMood,
-		seed:      seed,
+		request:   moodCuratorRequest(seed),
 		playlist:  subsonic.Playlist{ID: "mood-id", Name: "Mood", Count: 2},
 		playlists: []subsonic.Playlist{{ID: "other", Name: "Other"}, {ID: "mood-id", Name: "Mood", Count: 2}},
 		result: curator.Result{
@@ -167,7 +166,7 @@ func TestMoodCompletionKeepsOpenPlaylistVisible(t *testing.T) {
 	m.curatorPlaylistName = "Mood"
 	m.list.SetItems(trackItems([]subsonic.Track{testTrack("seed")}))
 	m = m.applyLLMQueue(llmQueueMsg{
-		mode:     curator.ModeMood,
+		request:  curatorRequest{Mode: curator.ModeMood, Destination: curatorDestinationServer, PlaylistName: "Mood", Limit: 20},
 		playlist: subsonic.Playlist{ID: "mood", Name: "Mood", Count: 2},
 		result:   curator.Result{Tracks: []subsonic.Track{testTrack("seed"), testTrack("next")}},
 	})

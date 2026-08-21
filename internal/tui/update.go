@@ -165,6 +165,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 	if m.isLLMConfigMode() {
 		return m.handleLLMConfigKey(msg)
 	}
+	if m.isCuratorInputMode() {
+		return m.handleCuratorInputKey(msg)
+	}
 	if m.mode == modeVault {
 		return m.handleVaultKey(msg)
 	}
@@ -236,7 +239,7 @@ func (m Model) handleKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 	case "g":
 		return m.generateRecommendedQueue()
 	case "G":
-		return m.generateLLMQueue()
+		return m.startCuratorChoice()
 	case "M":
 		return m.generateMoodPlaylist()
 	case "L":
@@ -323,7 +326,7 @@ func (m Model) activateSidebarEntry() (Model, tea.Cmd) {
 	case "g":
 		return m.generateRecommendedQueue()
 	case "G":
-		return m.generateLLMQueue()
+		return m.startCuratorChoice()
 	case "M":
 		return m.generateMoodPlaylist()
 	case "ctrl+l":

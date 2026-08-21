@@ -55,6 +55,8 @@ const (
 	modeLLMServer
 	modeLLMLoading
 	modeLLMModel
+	modeCuratorChoice
+	modeCuratorPrompt
 	modeVault
 )
 
@@ -71,6 +73,8 @@ type Model struct {
 	setup               []textinput.Model
 	setupFocus          int
 	llmDraft            llmConfigDraft
+	curatorDraft        curatorDraft
+	activeCurator       curatorRequest
 	vaultInput          textinput.Model
 	vaultStore          *localstore.Store
 	vaultStage          string
@@ -338,6 +342,8 @@ func (m *Model) refreshTitle() {
 		m.list.Title = "setup"
 	case modeLLMProvider, modeLLMServer, modeLLMLoading, modeLLMModel:
 		m.list.Title = "llm setup"
+	case modeCuratorChoice, modeCuratorPrompt:
+		m.list.Title = "ai curator"
 	case modeVault:
 		m.list.Title = "private vault"
 	default:

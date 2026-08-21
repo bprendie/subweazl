@@ -11,7 +11,7 @@ import (
 
 func (m Model) View() string {
 	contentWidth := max(20, m.width-4)
-	if m.mode == modeSetup || m.isLLMConfigMode() || m.mode == modeVault {
+	if m.mode == modeSetup || m.isLLMConfigMode() || m.isCuratorInputMode() || m.mode == modeVault {
 		var b strings.Builder
 		if contentWidth >= maxLineWidth(logo) {
 			b.WriteString("\n" + renderLogo(logo, contentWidth))
@@ -23,6 +23,8 @@ func (m Model) View() string {
 			b.WriteString(m.vaultView(contentWidth))
 		} else if m.isLLMConfigMode() {
 			b.WriteString(m.llmConfigView(contentWidth))
+		} else if m.isCuratorInputMode() {
+			b.WriteString(m.curatorInputView(contentWidth))
 		} else {
 			b.WriteString(m.setupView(contentWidth))
 		}
