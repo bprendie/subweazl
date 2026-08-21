@@ -166,6 +166,9 @@ func Generate(ctx context.Context, client Client, req Request) (Result, error) {
 	if len(accepted) != limit {
 		return resultFrom(candidates, accepted, attempts, allRejected), fmt.Errorf("curator could only fill %d/%d unique cached tracks", len(accepted), limit)
 	}
+	if err := validateMixCompletion(req.Mode, accepted, candidateByID); err != nil {
+		return resultFrom(candidates, accepted, attempts, allRejected), err
+	}
 	result := resultFrom(candidates, accepted, attempts, allRejected)
 	result.Fallback = fallback
 	return result, nil
@@ -285,6 +288,9 @@ func GenerateStreaming(ctx context.Context, client StreamingClient, req Request,
 	if len(accepted) != limit {
 		return resultFrom(candidates, accepted, attempts, allRejected), fmt.Errorf("curator could only fill %d/%d unique cached tracks", len(accepted), limit)
 	}
+	if err := validateMixCompletion(req.Mode, accepted, candidateByID); err != nil {
+		return resultFrom(candidates, accepted, attempts, allRejected), err
+	}
 	result := resultFrom(candidates, accepted, attempts, allRejected)
 	result.Fallback = fallback
 	return result, nil
@@ -356,6 +362,12 @@ func promptText(req Request, candidates []localstore.CachedTrack, limit, attempt
 	}
 	rows = append(rows, "MODE INSTRUCTION:")
 	rows = append(rows, modeInstruction(req, limit, attempt))
+	if mode == ModeAIMix {
+		newAccepted, backAccepted := acceptedClassCounts(req.Candidates, accepted)
+		remainingNew := max(0, req.Limit*3/5-newAccepted)
+		remainingBack := max(0, req.Limit*2/5-backAccepted)
+		rows = append(rows, fmt.Sprintf("APPLICATION LIMITS: at most %d additional NEW selections; at least %d additional BACK-NINE selections are still required.", remainingNew, remainingBack))
+	}
 	if attempt > 1 {
 		rows = append(rows, fmt.Sprintf("REPAIR ROUND %d: return exactly %d replacement track IDs.", attempt, limit))
 		rows = append(rows, "Previously accepted IDs (never repeat): "+strings.Join(accepted, ","))
@@ -549,6 +561,9 @@ func selectionAllowed(candidate localstore.CachedTrack, accepted []string, byID 
 		return true
 	}
 	artist, album := normalized(candidate.Track.Artist), normalized(candidate.Track.Album)
+	if artist == "" {
+		return false
+	}
 	artistCount, albumCount, newCount := 0, 0, 0
 	for _, id := range accepted {
 		prior := byID[id]
@@ -572,6 +587,39 @@ func selectionAllowed(candidate localstore.CachedTrack, accepted []string, byID 
 		return false
 	}
 	return true
+}
+
+func acceptedClassCounts(candidates []localstore.CachedTrack, accepted []string) (int, int) {
+	byID := make(map[string]bool, len(candidates))
+	for _, candidate := range candidates {
+		byID[candidate.Track.ID] = candidate.New
+	}
+	newCount, backCount := 0, 0
+	for _, id := range accepted {
+		if byID[id] {
+			newCount++
+		} else {
+			backCount++
+		}
+	}
+	return newCount, backCount
+}
+
+func validateMixCompletion(mode Mode, accepted []string, byID map[string]localstore.CachedTrack) error {
+	if mode != ModeAIMix {
+		return nil
+	}
+	artists := map[string]bool{}
+	for _, id := range accepted {
+		artist := normalized(byID[id].Track.Artist)
+		if artist != "" {
+			artists[artist] = true
+		}
+	}
+	if len(artists) < 8 {
+		return fmt.Errorf("curator produced only %d distinct artists; need at least 8", len(artists))
+	}
+	return nil
 }
 
 func candidateIDSet(candidates []localstore.CachedTrack) map[string]bool {

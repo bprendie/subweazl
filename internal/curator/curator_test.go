@@ -105,6 +105,42 @@ func TestAIMixPromptDistinguishesAuthoritativeSeedFromLaunchTracks(t *testing.T)
 	}
 }
 
+func TestAIMixRepairPromptCarriesRemainingClassRequirements(t *testing.T) {
+	var candidates []localstore.CachedTrack
+	var accepted []string
+	for i := 0; i < 24; i++ {
+		id := fmt.Sprintf("new-%d", i)
+		candidates = append(candidates, localstore.CachedTrack{Track: subsonic.Track{ID: id}, New: true})
+		accepted = append(accepted, id)
+	}
+	for i := 0; i < 10; i++ {
+		id := fmt.Sprintf("back-%d", i)
+		candidates = append(candidates, localstore.CachedTrack{Track: subsonic.Track{ID: id}})
+		accepted = append(accepted, id)
+	}
+	prompt := promptText(Request{Mode: ModeAIMix, Candidates: candidates, Limit: 40}, nil, 6, 2, accepted)
+	if !strings.Contains(prompt, "at most 0 additional NEW") || !strings.Contains(prompt, "at least 6 additional BACK-NINE") {
+		t.Fatalf("prompt lacks remaining class requirements:\n%s", prompt)
+	}
+}
+
+func TestAIMixCompletionRequiresEightDistinctArtists(t *testing.T) {
+	byID := map[string]localstore.CachedTrack{}
+	var accepted []string
+	for i := 0; i < 8; i++ {
+		id := fmt.Sprintf("id-%d", i)
+		accepted = append(accepted, id)
+		byID[id] = localstore.CachedTrack{Track: subsonic.Track{ID: id, Artist: fmt.Sprintf("Artist %d", i%7)}}
+	}
+	if err := validateMixCompletion(ModeAIMix, accepted, byID); err == nil {
+		t.Fatal("accepted mix with fewer than eight distinct artists")
+	}
+	byID["id-7"] = localstore.CachedTrack{Track: subsonic.Track{ID: "id-7", Artist: "Artist 7"}}
+	if err := validateMixCompletion(ModeAIMix, accepted, byID); err != nil {
+		t.Fatalf("rejected eight artists: %v", err)
+	}
+}
+
 func TestGenerateRejectsAllInventedIDs(t *testing.T) {
 	client := &fakeClient{responses: []string{`{"track_ids":["invented"]}`}}
 	result, err := Generate(context.Background(), client, Request{

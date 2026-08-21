@@ -80,6 +80,18 @@ func TestPromptCuratorPlaylistNameIsDeterministicAndBounded(t *testing.T) {
 	}
 }
 
+func TestPromptCuratorPlaylistNamePutsNamedReferenceFirst(t *testing.T) {
+	for prompt, want := range map[string]string{
+		"rock like Oasis":                        "AI Mix: Oasis Rock",
+		"new wave like New Order":                "AI Mix: New Order New Wave",
+		"synthwave like Slave to the Squarewave": "AI Mix: Slave to the Squarewave",
+	} {
+		if got := promptCuratorPlaylistName(prompt); got != want {
+			t.Errorf("prompt=%q name=%q want=%q", prompt, got, want)
+		}
+	}
+}
+
 func TestVaultDestinationCannotReplaceQueueAtProgressOrCompletion(t *testing.T) {
 	m := newHomeTestModel(t)
 	m.queue.Replace([]subsonic.Track{testTrack("keep"), testTrack("playing-next")}, 0)

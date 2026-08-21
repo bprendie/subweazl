@@ -136,6 +136,9 @@ func (m Model) runLLMCurator(ctx context.Context, generation string, events chan
 		preferred := map[string]bool{}
 		llmClient := llm.New(cfg)
 		var groundingAnchors []subsonic.Track
+		var groundingIntent curator.Intent
+		groundingMethod := "mood_seed"
+		candidateSnapshotID := curator.CandidateSnapshotID(cached)
 		playlistName := request.PlaylistName
 		playlistLimit := request.Limit
 		var priorPrivate *localstore.PrivatePlaylist
@@ -181,26 +184,29 @@ func (m Model) runLLMCurator(ctx context.Context, generation string, events chan
 				cachedIDs[candidate.Track.ID] = true
 			}
 			events <- curatorStageMsg{generation: generation, status: "grounding three playable anchors"}
-			primary, fastGrounded := curator.DiscoveryPrimarySeed(cached)
+			primary, fastGrounded := curator.DiscoveryPrimarySeed(cached, recent)
 			if query != "" {
-				primary, fastGrounded = curator.ResolvePrimarySeed(query, cached)
+				primary, fastGrounded = curator.ResolvePrimarySeed(query, cached, recent)
 			}
 			var anchors []subsonic.Track
 			var authoritativeNeighborhood []subsonic.Track
 			if fastGrounded {
+				groundingMethod = "deterministic_cache_and_navidrome"
 				similar, similarErr := client.Similar(ctx, primary, 160)
 				if similarErr == nil {
-					anchors, similarErr = curator.SelectDeterministicAnchors(primary, similar, cachedIDs)
+					anchors, similarErr = curator.SelectDeterministicAnchors(primary, similar, cachedIDs, recent)
 					authoritativeNeighborhood = similar
 				}
 				fastGrounded = similarErr == nil
 			}
 			if !fastGrounded && query != "" {
+				groundingMethod = "llm_fallback"
 				events <- curatorStageMsg{generation: generation, status: "interpreting your request"}
 				intent, err = curator.InterpretIntent(ctx, llmClient, query)
 				if err != nil {
 					return errMsg{err: fmt.Errorf("interpret AI mix request: %w", err)}
 				}
+				groundingIntent = intent
 				seen := map[string]bool{}
 				var anchorCandidates []subsonic.Track
 				for _, term := range intent.SearchTerms {
@@ -256,9 +262,10 @@ func (m Model) runLLMCurator(ctx context.Context, generation string, events chan
 				preferred[track.ID] = true
 			}
 			if len(grounded) < playlistLimit {
-				return errMsg{err: fmt.Errorf("three anchors produced only %d cached candidates; need %d", len(grounded), playlistLimit)}
+				return errMsg{err: preservedPartialCuratorError(fmt.Errorf("authoritative seed produced only %d cached candidates; need %d", len(grounded), playlistLimit), len(anchors), playlistLimit)}
 			}
 			cached = grounded
+			candidateSnapshotID = curator.CandidateSnapshotID(cached)
 			events <- curatorStageMsg{generation: generation, status: fmt.Sprintf("curating a grounded crate of %d tracks", len(grounded))}
 		}
 		progressive := append([]subsonic.Track(nil), groundingAnchors...)
@@ -324,7 +331,7 @@ func (m Model) runLLMCurator(ctx context.Context, generation string, events chan
 			if !published {
 				rollbackPrivate()
 			}
-			payload := curator.RunPayload(cfg.Provider, cfg.Model, result)
+			payload := enrichedCuratorRunPayload(cfg.Provider, cfg.Model, result, request, groundingMethod, groundingIntent, groundingAnchors, candidateSnapshotID, len(cached))
 			payload["status"] = "failed"
 			payload["error"] = err.Error()
 			_, _ = store.SaveRecommendationRun(localstore.RecommendationRun{
@@ -337,6 +344,9 @@ func (m Model) runLLMCurator(ctx context.Context, generation string, events chan
 			if errors.Is(err, context.DeadlineExceeded) {
 				err = fmt.Errorf("DJ-Weazl timed out; check the LLM server and try again")
 			}
+			if published {
+				err = preservedPartialCuratorError(err, len(result.IDs), playlistLimit)
+			}
 			return errMsg{err: err}
 		}
 		run := localstore.RecommendationRun{
@@ -344,12 +354,15 @@ func (m Model) runLLMCurator(ctx context.Context, generation string, events chan
 			Model:    cfg.Model,
 			TrackIDs: result.IDs,
 			Status:   "complete",
-			Payload:  curator.RunPayload(cfg.Provider, cfg.Model, result),
+			Payload:  enrichedCuratorRunPayload(cfg.Provider, cfg.Model, result, request, groundingMethod, groundingIntent, groundingAnchors, candidateSnapshotID, len(cached)),
 		}
 		run, err = store.SaveRecommendationRun(run)
 		if err != nil {
 			if !published {
 				rollbackPrivate()
+			}
+			if published {
+				err = preservedPartialCuratorError(err, len(result.IDs), playlistLimit)
 			}
 			return errMsg{err: err}
 		}
@@ -370,14 +383,22 @@ func (m Model) runLLMCurator(ctx context.Context, generation string, events chan
 				if !published {
 					rollbackPrivate()
 				}
-				return errMsg{err: fmt.Errorf("save private %s playlist: %w", playlistName, err)}
+				err = fmt.Errorf("save private %s playlist: %w", playlistName, err)
+				if published {
+					err = preservedPartialCuratorError(err, len(result.IDs), playlistLimit)
+				}
+				return errMsg{err: err}
 			}
 			msg.privatePlaylists, err = store.PrivatePlaylists()
 			if err != nil {
 				if !published {
 					rollbackPrivate()
 				}
-				return errMsg{err: fmt.Errorf("refresh private playlists: %w", err)}
+				err = fmt.Errorf("refresh private playlists: %w", err)
+				if published {
+					err = preservedPartialCuratorError(err, len(result.IDs), playlistLimit)
+				}
+				return errMsg{err: err}
 			}
 		}
 		return msg
@@ -426,6 +447,25 @@ func authoritativeGrounding(anchors []subsonic.Track) []subsonic.Track {
 		return nil
 	}
 	return anchors[:1]
+}
+
+func preservedPartialCuratorError(err error, accepted, total int) error {
+	return fmt.Errorf("curation stopped at %d/%d; playable partial playlist preserved: %w", accepted, total, err)
+}
+
+func enrichedCuratorRunPayload(provider, model string, result curator.Result, request curatorRequest, method string, intent curator.Intent, launchTracks []subsonic.Track, candidateSnapshotID string, candidateCount int) map[string]any {
+	payload := curator.RunPayload(provider, model, result)
+	payload["curator_mode"] = request.Mode
+	payload["user_prompt"] = request.Prompt
+	payload["grounding_method"] = method
+	payload["interpreted_intent"] = intent
+	payload["candidate_snapshot_id"] = candidateSnapshotID
+	payload["candidate_count"] = candidateCount
+	if len(launchTracks) > 0 {
+		payload["authoritative_seed"] = launchTracks[0]
+		payload["launch_tracks"] = launchTracks
+	}
+	return payload
 }
 
 func waitCuratorEvent(events <-chan tea.Msg) tea.Cmd {

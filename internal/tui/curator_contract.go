@@ -115,34 +115,59 @@ func (m Model) startCapturedCurator() (Model, tea.Cmd) {
 }
 
 func promptCuratorPlaylistName(prompt string) string {
-	stop := map[string]bool{"a": true, "an": true, "the": true, "for": true, "me": true, "some": true, "please": true, "make": true, "track": true, "tracks": true, "song": true, "songs": true, "music": true, "playlist": true, "mix": true}
 	cleaned := strings.Map(func(r rune) rune {
 		if unicode.IsLetter(r) || unicode.IsNumber(r) || unicode.IsSpace(r) || r == '-' {
 			return r
 		}
 		return ' '
 	}, prompt)
+	cleaned = strings.Join(strings.Fields(cleaned), " ")
 	var words []string
-	for _, word := range strings.Fields(cleaned) {
+	if parts := strings.SplitN(strings.ToLower(cleaned), " like ", 2); len(parts) == 2 {
+		words = append(words, curatorNameWords(parts[1], true)...)
+		words = append(words, curatorNameWords(parts[0], false)...)
+	} else {
+		words = curatorNameWords(cleaned, false)
+	}
+	if len(words) == 0 {
+		return "AI Mix: Weazl Cut"
+	}
+	var kept []string
+	length := 0
+	for _, word := range words {
+		next := len([]rune(word))
+		if len(kept) > 0 {
+			next++
+		}
+		if length+next > 32 {
+			break
+		}
+		kept = append(kept, word)
+		length += next
+	}
+	return "AI Mix: " + strings.Join(kept, " ")
+}
+
+func curatorNameWords(value string, preserveConnectors bool) []string {
+	stop := map[string]bool{"a": true, "an": true, "for": true, "me": true, "some": true, "please": true, "make": true, "track": true, "tracks": true, "song": true, "songs": true, "music": true, "playlist": true, "mix": true, "like": true, "similar": true, "style": true}
+	if !preserveConnectors {
+		stop["the"], stop["to"], stop["of"] = true, true, true
+	}
+	var words []string
+	for _, word := range strings.Fields(value) {
 		lower := strings.ToLower(word)
 		if stop[lower] {
 			continue
 		}
 		runes := []rune(lower)
-		if len(runes) > 0 {
+		if preserveConnectors && (lower == "to" || lower == "the" || lower == "of") {
+			words = append(words, lower)
+		} else {
 			runes[0] = unicode.ToUpper(runes[0])
+			words = append(words, string(runes))
 		}
-		words = append(words, string(runes))
 	}
-	label := strings.Join(words, " ")
-	if label == "" {
-		label = "Weazl Cut"
-	}
-	labelRunes := []rune(label)
-	if len(labelRunes) > 32 {
-		label = strings.TrimSpace(string(labelRunes[:32]))
-	}
-	return "AI Mix: " + label
+	return words
 }
 
 func (m Model) cancelCuratorInput(status string) (Model, tea.Cmd) {

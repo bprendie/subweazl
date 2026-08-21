@@ -2,6 +2,8 @@ package curator
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -43,14 +45,14 @@ func (f *FlexibleText) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func ResolvePrimarySeed(query string, candidates []localstore.CachedTrack) (subsonic.Track, bool) {
+func ResolvePrimarySeed(query string, candidates []localstore.CachedTrack, excluded map[string]bool) (subsonic.Track, bool) {
 	queryKey := searchable(query)
 	allowVariants := recordingVariant(subsonic.Track{Title: query})
 	bestScore, bestKey := 0, ""
 	var best subsonic.Track
 	for _, candidate := range candidates {
 		track := candidate.Track
-		if track.ID == "" || (!allowVariants && recordingVariant(track)) || curatorBlacklisted(track) {
+		if track.ID == "" || excluded[track.ID] || (!allowVariants && recordingVariant(track)) || curatorBlacklisted(track) {
 			continue
 		}
 		score := seedScore(queryKey, candidate)
@@ -62,10 +64,10 @@ func ResolvePrimarySeed(query string, candidates []localstore.CachedTrack) (subs
 	return best, bestScore >= 300
 }
 
-func DiscoveryPrimarySeed(candidates []localstore.CachedTrack) (subsonic.Track, bool) {
+func DiscoveryPrimarySeed(candidates []localstore.CachedTrack, excluded map[string]bool) (subsonic.Track, bool) {
 	for _, requireStarred := range []bool{true, false} {
 		for _, candidate := range candidates {
-			if candidate.Track.ID == "" || candidate.New || curatorBlacklisted(candidate.Track) || recordingVariant(candidate.Track) || (requireStarred && !candidate.Starred) {
+			if candidate.Track.ID == "" || excluded[candidate.Track.ID] || candidate.New || curatorBlacklisted(candidate.Track) || recordingVariant(candidate.Track) || (requireStarred && !candidate.Starred) {
 				continue
 			}
 			return candidate.Track, true
@@ -74,8 +76,8 @@ func DiscoveryPrimarySeed(candidates []localstore.CachedTrack) (subsonic.Track, 
 	return subsonic.Track{}, false
 }
 
-func SelectDeterministicAnchors(seed subsonic.Track, neighborhood []subsonic.Track, cachedIDs map[string]bool) ([]subsonic.Track, error) {
-	if seed.ID == "" || !cachedIDs[seed.ID] {
+func SelectDeterministicAnchors(seed subsonic.Track, neighborhood []subsonic.Track, cachedIDs, excluded map[string]bool) ([]subsonic.Track, error) {
+	if seed.ID == "" || !cachedIDs[seed.ID] || excluded[seed.ID] {
 		return nil, errors.New("primary seed is not in the synced cache")
 	}
 	anchors := []subsonic.Track{seed}
@@ -83,7 +85,7 @@ func SelectDeterministicAnchors(seed subsonic.Track, neighborhood []subsonic.Tra
 	seenAlbum := map[string]bool{normalized(seed.Album): true}
 	for _, track := range neighborhood {
 		artist, album := normalized(track.Artist), normalized(track.Album)
-		if track.ID == "" || !cachedIDs[track.ID] || track.ID == seed.ID || recordingVariant(track) || (artist != "" && seenArtist[artist]) || (album != "" && seenAlbum[album]) {
+		if track.ID == "" || !cachedIDs[track.ID] || excluded[track.ID] || track.ID == seed.ID || recordingVariant(track) || (artist != "" && seenArtist[artist]) || (album != "" && seenAlbum[album]) {
 			continue
 		}
 		anchors = append(anchors, track)
@@ -260,6 +262,16 @@ func MergeSimilarityCrate(anchors []subsonic.Track, neighborhoods [][]subsonic.T
 	return out
 }
 
+func CandidateSnapshotID(candidates []localstore.CachedTrack) string {
+	rows := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		rows = append(rows, fmt.Sprintf("%s|%t|%d", candidate.Track.ID, candidate.New, candidate.NewestRank))
+	}
+	sort.Strings(rows)
+	sum := sha256.Sum256([]byte(strings.Join(rows, "\n")))
+	return hex.EncodeToString(sum[:])
+}
+
 func decodeJSONObject(raw string, target any) error {
 	start, end := strings.Index(raw, "{"), strings.LastIndex(raw, "}")
 	if start < 0 || end < start {
@@ -286,13 +298,14 @@ func uniqueTerms(values []string) []string {
 func normalized(value string) string { return strings.ToLower(strings.TrimSpace(value)) }
 
 func recordingVariant(track subsonic.Track) bool {
-	text := normalized(track.Title + " " + track.Album)
-	for _, marker := range []string{" live", "remix", "acoustic", "karaoke", "tribute", "cover version"} {
+	title, album := normalized(track.Title), normalized(track.Album)
+	text := title + " " + album
+	for _, marker := range []string{"remix", "acoustic", "karaoke", "tribute", "cover version"} {
 		if strings.Contains(" "+text, marker) {
 			return true
 		}
 	}
-	return false
+	return album == "live" || strings.Contains(title, "(live") || strings.Contains(title, "[live") || strings.Contains(title, " live at ") || strings.Contains(title, " live from ") || strings.HasSuffix(title, " - live") || strings.HasSuffix(title, " live")
 }
 
 func anchorTrackLine(track subsonic.Track) string {

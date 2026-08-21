@@ -222,6 +222,13 @@ func TestCuratorFailureKeepsStageVisibleInStatusLine(t *testing.T) {
 	}
 }
 
+func TestPublishedCuratorFailureReportsPreservedPartialCount(t *testing.T) {
+	err := preservedPartialCuratorError(errors.New("provider stopped"), 17, 40)
+	if !strings.Contains(err.Error(), "17/40") || !strings.Contains(err.Error(), "playable partial playlist preserved") {
+		t.Fatalf("error=%q", err)
+	}
+}
+
 func TestAIMixUsesNamedServerPlaylistAndLiveView(t *testing.T) {
 	m := newHomeTestModel(t)
 	m.applyCuratorPlaylistStarted(curatorPlaylistStartedMsg{

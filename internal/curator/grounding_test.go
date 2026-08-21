@@ -36,9 +36,29 @@ func TestResolvePrimarySeedPrefersExactOasisArtist(t *testing.T) {
 		{Track: subsonic.Track{ID: "oasis", Title: "Supersonic", Artist: "Oasis", Album: "Definitely Maybe", Genre: "Rock"}},
 		{Track: subsonic.Track{ID: "other", Title: "Rock Music", Artist: "Pixies", Genre: "Alternative"}},
 	}
-	seed, ok := ResolvePrimarySeed("rock like Oasis", candidates)
+	seed, ok := ResolvePrimarySeed("rock like Oasis", candidates, nil)
 	if !ok || seed.ID != "oasis" {
 		t.Fatalf("seed=%#v ok=%v", seed, ok)
+	}
+}
+
+func TestGroundingExcludesRecentSeedAndLaunchTracks(t *testing.T) {
+	candidates := []localstore.CachedTrack{
+		{Track: subsonic.Track{ID: "recent", Title: "Supersonic", Artist: "Oasis", Genre: "Rock"}},
+		{Track: subsonic.Track{ID: "eligible", Title: "Live Forever", Artist: "Oasis", Genre: "Rock"}},
+	}
+	seed, ok := ResolvePrimarySeed("rock like Oasis", candidates, map[string]bool{"recent": true})
+	if !ok || seed.ID != "eligible" {
+		t.Fatalf("seed=%#v ok=%v", seed, ok)
+	}
+	neighbors := []subsonic.Track{
+		{ID: "recent-neighbor", Artist: "Blur", Album: "Parklife"},
+		{ID: "verve", Artist: "The Verve", Album: "Urban Hymns"},
+		{ID: "pulp", Artist: "Pulp", Album: "Different Class"},
+	}
+	anchors, err := SelectDeterministicAnchors(seed, neighbors, map[string]bool{"eligible": true, "recent-neighbor": true, "verve": true, "pulp": true}, map[string]bool{"recent-neighbor": true})
+	if err != nil || anchors[1].ID != "verve" || anchors[2].ID != "pulp" {
+		t.Fatalf("anchors=%v err=%v", anchors, err)
 	}
 }
 
@@ -50,7 +70,7 @@ func TestSelectDeterministicAnchorsUsesDistinctArtistsAndAlbums(t *testing.T) {
 		{ID: "blur-two", Artist: "Blur", Album: "13"},
 		{ID: "verve", Artist: "The Verve", Album: "Urban Hymns"},
 	}
-	anchors, err := SelectDeterministicAnchors(seed, neighbors, map[string]bool{"oasis": true, "same-artist": true, "blur": true, "blur-two": true, "verve": true})
+	anchors, err := SelectDeterministicAnchors(seed, neighbors, map[string]bool{"oasis": true, "same-artist": true, "blur": true, "blur-two": true, "verve": true}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,5 +106,13 @@ func TestMergeSimilarityCrateRanksMultiAnchorOverlap(t *testing.T) {
 	})
 	if len(crate) != 7 || crate[3].ID != "shared" {
 		t.Fatalf("crate=%v", crate)
+	}
+}
+
+func TestCandidateSnapshotIDIsStableAcrossOrdering(t *testing.T) {
+	a := localstore.CachedTrack{Track: subsonic.Track{ID: "a"}, New: true, NewestRank: 2}
+	b := localstore.CachedTrack{Track: subsonic.Track{ID: "b"}}
+	if CandidateSnapshotID([]localstore.CachedTrack{a, b}) != CandidateSnapshotID([]localstore.CachedTrack{b, a}) {
+		t.Fatal("candidate snapshot identity depends on ordering")
 	}
 }
