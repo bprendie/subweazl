@@ -3,6 +3,7 @@ package llm
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -33,6 +34,26 @@ func TestCompleteUsesConfiguredPathAndModel(t *testing.T) {
 	}
 	if got != `{"track_ids":["a"]}` || gotPath != "/chat" || gotModel != "model-a" {
 		t.Fatalf("got content=%q path=%q model=%q", got, gotPath, gotModel)
+	}
+}
+
+func TestOmarchyStreamDeliversBufferedAgentOutput(t *testing.T) {
+	bin := t.TempDir()
+	writeExecutable(t, bin, "codex", "#!/bin/sh\nprintf '[\"weazl-track\"]'\n")
+	t.Setenv("PATH", bin)
+	client := New(config.LLMConfig{Provider: "omarchy", Model: "codex"})
+	var got string
+	err := client.StreamComplete(context.Background(), []Message{{Role: "system", Content: "You are DJ-Weazl."}}, 100, func(delta string) error {
+		got += delta
+		return nil
+	})
+	if err != nil || got != `["weazl-track"]` {
+		t.Fatalf("got=%q err=%v", got, err)
+	}
+	want := errors.New("stop")
+	err = client.StreamComplete(context.Background(), nil, 100, func(string) error { return want })
+	if !errors.Is(err, want) {
+		t.Fatalf("callback error = %v", err)
 	}
 }
 

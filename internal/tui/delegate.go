@@ -32,7 +32,7 @@ func (d delegate) Render(w io.Writer, m list.Model, index int, row list.Item) {
 	desc := firstLines(ansi.Wordwrap(it.Description(), width, " /_-"), 1)
 	if index == m.Index() {
 		title = d.styles.selected.Render("> ") + prefix + gradientText(title, trackStops)
-		fmt.Fprintf(w, "%s\n%s", title, lipgloss.NewStyle().Foreground(crushPurple).Render("  "+desc))
+		fmt.Fprintf(w, "%s\n%s", title, lipgloss.NewStyle().Foreground(secondary).Render("  "+desc))
 		return
 	}
 	fmt.Fprintf(w, "%s\n%s", d.styles.item.Render(prefix+title), d.styles.help.Render("  "+desc))
@@ -44,9 +44,9 @@ func (d delegate) kindBadge(kind string) string {
 	}
 	label := strings.ToUpper(kind[:1])
 	return lipgloss.NewStyle().
-		Foreground(crushGold).
+		Foreground(warning).
 		Border(lipgloss.NormalBorder(), false, true, false, true).
-		BorderForeground(crushPurple).
+		BorderForeground(secondary).
 		Padding(0, 1).
 		Render(label) + " "
 }

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+action=${1:-}
+SUBWEAZL_BIN=${SUBWEAZL_BIN:-"$HOME/.subweazl/bin/subweazl"}
+case "$action" in
+  toggle|next|previous) ;;
+  *) echo "usage: subweazl-media-key <toggle|next|previous>" >&2; exit 2 ;;
+esac
+
+if "$SUBWEAZL_BIN" remote status 2>/dev/null | jq -e '.running == true' >/dev/null; then
+  exec "$SUBWEAZL_BIN" remote "$action"
+fi
+
+case "$action" in
+  toggle) exec omarchy-shell media playPause ;;
+  next) exec omarchy-shell media next ;;
+  previous) exec omarchy-shell media previous ;;
+esac

@@ -83,10 +83,10 @@ func (v Visualizer) index(value float64) int {
 
 func (v Visualizer) color(i int) lipgloss.Color {
 	if i%3 == 0 {
-		return crushPink
+		return accent
 	}
 	if i%3 == 1 {
-		return crushMint
+		return success
 	}
-	return crushPurple
+	return secondary
 }

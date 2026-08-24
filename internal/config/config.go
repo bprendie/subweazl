@@ -79,6 +79,9 @@ func (c Config) Ready() bool {
 }
 
 func (c Config) LLMReady() bool {
+	if c.LLM.Provider == "omarchy" {
+		return true
+	}
 	return c.LLM.Provider != "" && c.LLM.BaseURL != "" && c.LLM.Model != "" && c.LLM.ChatPath != ""
 }
 

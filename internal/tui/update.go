@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bprendie/subweazl/internal/remote"
 	"github.com/bprendie/subweazl/internal/subsonic"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
@@ -13,6 +14,26 @@ import (
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
+	case remote.Command:
+		var cmd tea.Cmd
+		switch msg {
+		case remote.Toggle:
+			m.togglePause()
+		case remote.Next:
+			m, cmd = m.playNext()
+		case remote.Previous:
+			m, cmd = m.playPrevious()
+		case remote.Stop:
+			m.stop()
+		case remote.CycleMode:
+			m.cyclePlaybackMode()
+			m.publishRemote(true)
+		case remote.Quit:
+			m.stop()
+			m.closeVaultStore()
+			return m, tea.Quit
+		}
+		cmds = append(cmds, cmd)
 	case tea.WindowSizeMsg:
 		m.resize(msg.Width, msg.Height)
 	case tea.KeyMsg:
@@ -135,12 +156,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case titleMsg:
 		if msg.title != "" {
 			m.trackTitle = msg.title
+			m.publishRemote(true)
 		}
 	case scrobbleMsg:
 		if msg.err != nil {
 			m.err = "scrobble: " + msg.err.Error()
 		}
 	case tickMsg:
+		m.refreshTheme(time.Time(msg))
+		m.publishRemote()
 		m.drainMeter()
 		if m.playerStarted && m.isPlaying() && !m.paused && !m.player.Running() {
 			finishedID := m.playing.ID

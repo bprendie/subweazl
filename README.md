@@ -24,14 +24,47 @@ No cloud sync. No telemetry. Just your music, locked down tight.
 
 ![Subweazl app screenshot](subweazl.png)
 
+## Own The Whole Weazl Stack
+
+* Browse albums, tracks, and playlists from your own Subsonic-compatible server.
+* Stream through `mpv`; pause, skip, reorder, shuffle, repeat, and save queues
+  without handing an engagement machine the aux cord.
+* Render pixel-art covers and a live `ffmpeg` visualizer directly in the TUI.
+* Encrypt history, queue snapshots, cached metadata, private playlists,
+  deterministic recipes, and DJ-Weazl curator runs in the local vault.
+* Put the current Omarchy agent to work against music you actually own, with
+  Ollama and vLLM still available as local alternatives.
+* Drive the same player and queue from the Omarchy bar, hardware media keys, or
+  the private remote bridge.
+
 ## Forge The Binary
 
-You need Go 1.25+, `mpv`, `ffmpeg`, and a C compiler for the SQLite vault. If you don't have them, shave the yak.
+You need Go 1.25+, `mpv`, `ffmpeg`, and a C compiler for the SQLite vault. The Omarchy widget also uses `tmux` and `jq`. If you don't have them, shave the yak.
 
 **Linux / macOS:**
 
 ```sh
 SUBWEAZL_SKIP_LAUNCH=1 SUBWEAZL_SKIP_LLM_SETUP=1 ./scripts/install.sh
+```
+
+On Omarchy, the same installer validates and enables the native bar widget,
+wires media keys, and keeps the listening process in a detachable tmux session.
+Use `--no-widget` (or `SUBWEAZL_SKIP_WIDGET=1`) when you only want the core app.
+The integration installs entirely in user-owned paths; `/usr/share/omarchy/`
+stays untouched.
+
+The equivalent command-line switches are `--no-launch`, `--no-llm-setup`, and
+`--no-widget`. A normal `./scripts/install.sh` performs the full install and
+launches the Weazl. The widget is an unsandboxed local plugin: it invokes the
+Subweazl binary, `tmux`, `jq`, `hyprctl`, and `omarchy-launch-tui`, but never
+needs root or writes outside your user-owned config, state, cache, and install
+paths.
+
+Omarchy shell plugins hot-reload. If the deck ever gets stuck on an old build,
+bounce it cleanly:
+
+```sh
+omarchy restart shell
 ```
 
 **Windows (MSYS2 required for C compiler):**
@@ -68,7 +101,7 @@ export SUBWEAZL_PASSWORD="<password>"
 
 ## Tactical AI (The Curator)
 
-AI is a weapon, not a default. Subweazl does not ship with a provider, model, or endpoint. The feature is completely dead until you explicitly arm it.
+AI is a weapon, not a default. Subweazl does not arm a provider until you explicitly choose one.
 
 Jack in your local provider:
 
@@ -76,9 +109,16 @@ Jack in your local provider:
 subweazl --configure-llm
 ```
 
-The setup demands your provider label, base URL, and model details. Blanking the provider disables the AI entirely.
+Choose `omarchy` to put your current Omarchy default agent behind DJ-Weazl. The
+agent is resolved again for every run, so switching the desktop default changes
+the next crate without rewriting Subweazl config. Codex is the supported
+agent-backed runner today. Ollama and vLLM keep their local endpoint and model
+setup. Blanking the provider disables AI entirely.
 
-Already inside the BBS? Hit `ctrl+l`, choose `vllm` or `ollama`, punch in the URL, and wait while Subweazl interrogates the endpoint for its models. Select one and you are armed. Uppercase `L` remains wired as the compatibility alias.
+Already inside the BBS? Hit `ctrl+l` and choose `omarchy`, `ollama`, or `vllm`.
+Omarchy needs no URL or model screen. For the local HTTP providers, punch in the
+URL and wait while Subweazl interrogates the endpoint for its models. Uppercase
+`L` remains wired as the compatibility alias.
 
 **The Sandbox:** The curator only receives vaulted cache candidates and summary context. It must return cached track IDs. Subweazl validates every returned ID before building the queue. If the model hallucinates an invented or unknown ID, we reject it. Run metadata is stored encrypted in the vault. Zero algorithmic sludge.
 
@@ -87,6 +127,56 @@ Already inside the BBS? Hit `ctrl+l`, choose `vllm` or `ollama`, punch in the UR
 `M` is the flow-state interrupt. Fire it while a track is running and Mood overwrites the server-side `Mood` playlist with 20 validated, momentum-safe cuts built around that recording. The current track never restarts. The queue keeps breathing while inference, validation, and repair grind in the background.
 
 NEW means the albums most recently uploaded to your Navidrome server—not whatever an engagement funnel wants to sell this week. AI Mix keeps the request in command, caps artist and album sprawl, protects the back nine, blacklists bogus spacer tracks, and never admits an ID that is not in the encrypted cache.
+
+## Omarchy Weazl Deck
+
+On Omarchy, Subweazl follows the live desktop palette without dropping its
+identity: the banner, DJ-Weazl, vault language, and BBS controls remain intact
+while panels, gradients, status colors, inputs, and visualizer colors move with
+the selected theme.
+
+The bar widget is a remote deck for the one running Subweazl process. It shows
+the current cut, opens playback controls, cycles modes, and launches Subweazl in
+the named `subweazl` tmux session. Close the terminal and the interface detaches;
+playback, queue state, and the unlocked Weazl vault stay alive. Open Subweazl
+from the widget to reattach to that exact session.
+
+`Stop` kills playback only. **Quit and lock Weazl vault** stops playback, closes
+the encrypted store, clears the in-memory key, and ends the listening session.
+
+Hardware Play/Pause, Next, and Previous keys prefer the live Subweazl session.
+If no Weazl is running, they fall back to Omarchy's selected media source.
+`Alt+Play` advances and `Alt+Shift+Play` goes back on keyboards without track
+keys.
+
+### The Private Remote Wire
+
+The live TUI owns a private Unix socket and publishes a small atomic playback
+snapshot under the XDG state directory. That snapshot contains display state,
+not credentials, vault contents, playlists, or DJ-Weazl prompts. The widget and
+media-key helper both use this wire, so every controller talks to one player
+and one queue.
+
+```sh
+subweazl remote status
+subweazl remote toggle
+subweazl remote previous
+subweazl remote next
+subweazl remote stop
+subweazl remote mode
+subweazl remote quit
+```
+
+`remote quit` is the sharp switch: it stops playback, locks the Weazl vault,
+and ends the persistent tmux session. The other commands leave the listening
+session unlocked and breathing.
+
+To remove the app integration while preserving config, vault, cache, queue,
+playlists, and history:
+
+```sh
+./scripts/uninstall.sh
+```
 
 ## Hardware Interrupts
 
@@ -157,5 +247,7 @@ The local vault is not just a database; it is the entire memory of your session.
 * Queue snapshots survive a hard restart.
 * Private playlists stay local—they do not mutate your Subsonic server.
 * Cache sync is manual and encrypted, explicitly used for high-speed local searches and local curation.
+* The remote snapshot exposes playback display data only; the private material
+  never leaves the vault.
 
 Weaz the juice.

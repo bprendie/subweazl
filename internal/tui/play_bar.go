@@ -16,10 +16,10 @@ func (m Model) playBar(width int) string {
 	color := muted
 	if m.playing != nil {
 		state = "playing"
-		color = crushMint
+		color = success
 		if m.paused {
 			state = "paused"
-			color = crushGold
+			color = warning
 		}
 		title = m.playing.Title
 		if m.trackTitle != "" {
@@ -31,7 +31,7 @@ func (m Model) playBar(width int) string {
 		}
 	}
 	left := lipgloss.NewStyle().Foreground(color).Bold(true).Render(strings.ToUpper(state))
-	coverBadge := meterBadge(cover, crushPink)
+	coverBadge := meterBadge(cover, accent)
 	meta := title
 	if artist != "" {
 		meta = artist + " - " + title
@@ -44,9 +44,9 @@ func (m Model) playBar(width int) string {
 
 func playbackControls(mode string) string {
 	return strings.Join([]string{
-		lipgloss.NewStyle().Foreground(crushGold).Bold(true).Render("[p]") + " prev",
-		lipgloss.NewStyle().Foreground(crushMint).Bold(true).Render("[space]") + " play/pause",
-		lipgloss.NewStyle().Foreground(crushGold).Bold(true).Render("[n]") + " next",
-		lipgloss.NewStyle().Foreground(crushPink).Bold(true).Render("[m]") + " " + mode,
+		lipgloss.NewStyle().Foreground(warning).Bold(true).Render("[p]") + " prev",
+		lipgloss.NewStyle().Foreground(success).Bold(true).Render("[space]") + " play/pause",
+		lipgloss.NewStyle().Foreground(warning).Bold(true).Render("[n]") + " next",
+		lipgloss.NewStyle().Foreground(accent).Bold(true).Render("[m]") + " " + mode,
 	}, "  ")
 }

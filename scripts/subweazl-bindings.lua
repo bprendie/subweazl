@@ -1,0 +1,13 @@
+-- Prefer a live Subweazl session, then fall back to Omarchy's media source.
+hl.unbind("XF86AudioNext")
+hl.unbind("ALT + XF86AudioPlay")
+hl.unbind("XF86AudioPause")
+hl.unbind("XF86AudioPlay")
+hl.unbind("XF86AudioPrev")
+hl.unbind("ALT + SHIFT + XF86AudioPlay")
+o.bind("XF86AudioNext", "Next track", "$HOME/.subweazl/bin/subweazl-media-key next", { locked = true })
+o.bind("ALT + XF86AudioPlay", "Next track", "$HOME/.subweazl/bin/subweazl-media-key next", { locked = true })
+o.bind("XF86AudioPause", "Play/pause", "$HOME/.subweazl/bin/subweazl-media-key toggle", { locked = true })
+o.bind("XF86AudioPlay", "Play/pause", "$HOME/.subweazl/bin/subweazl-media-key toggle", { locked = true })
+o.bind("XF86AudioPrev", "Previous track", "$HOME/.subweazl/bin/subweazl-media-key previous", { locked = true })
+o.bind("ALT + SHIFT + XF86AudioPlay", "Previous track", "$HOME/.subweazl/bin/subweazl-media-key previous", { locked = true })

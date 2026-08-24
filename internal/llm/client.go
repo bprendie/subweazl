@@ -38,6 +38,9 @@ func NewWithHTTP(cfg config.LLMConfig, httpClient *http.Client) Client {
 }
 
 func (c Client) Complete(ctx context.Context, messages []Message, maxTokens int) (string, error) {
+	if c.cfg.Provider == "omarchy" {
+		return completeWithAgent(ctx, c.cfg.Model, messages, maxTokens)
+	}
 	if c.cfg.BaseURL == "" || c.cfg.Model == "" || c.cfg.ChatPath == "" {
 		return "", errors.New("llm is not configured")
 	}
@@ -88,6 +91,13 @@ func (c Client) Complete(ctx context.Context, messages []Message, maxTokens int)
 // StreamComplete delivers text deltas as the provider produces them. vLLM
 // uses OpenAI-compatible SSE; Ollama uses newline-delimited JSON.
 func (c Client) StreamComplete(ctx context.Context, messages []Message, maxTokens int, onDelta func(string) error) error {
+	if c.cfg.Provider == "omarchy" {
+		output, err := c.Complete(ctx, messages, maxTokens)
+		if err == nil && onDelta != nil {
+			err = onDelta(output)
+		}
+		return err
+	}
 	if c.cfg.BaseURL == "" || c.cfg.Model == "" || c.cfg.ChatPath == "" {
 		return errors.New("llm is not configured")
 	}

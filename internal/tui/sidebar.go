@@ -50,13 +50,13 @@ func (m Model) sidebar(width, height int) string {
 
 func (m Model) railHeader(label string) string {
 	return lipgloss.NewStyle().
-		Foreground(crushGold).
+		Foreground(warning).
 		Bold(true).
 		Render(label)
 }
 
 func (m Model) navLine(entry navEntry, index, width int) string {
-	key := lipgloss.NewStyle().Foreground(crushPurple).Bold(true).Render(entry.key)
+	key := lipgloss.NewStyle().Foreground(secondary).Bold(true).Render(entry.key)
 	label := ansi.Truncate(entry.label, max(8, width-4), "...")
 	style := m.styles.item
 	prefix := "  "

@@ -9,7 +9,7 @@ import (
 
 func (m Model) vaultView(width int) string {
 	var b strings.Builder
-	title := lipgloss.NewStyle().Foreground(crushGold).Bold(true).Render("private vault")
+	title := lipgloss.NewStyle().Foreground(warning).Bold(true).Render("private vault")
 	b.WriteString(title)
 	b.WriteString("\n")
 	b.WriteString(m.styles.help.Render("[enter] continue  [esc] cancel confirm  [q] quit"))
@@ -25,7 +25,7 @@ func (m Model) vaultView(width int) string {
 
 func (m Model) vaultPanel(width int) string {
 	var b strings.Builder
-	b.WriteString(lipgloss.NewStyle().Foreground(crushMint).Render("PRIVATE // PERSONAL // VAULTED"))
+	b.WriteString(lipgloss.NewStyle().Foreground(success).Render("PRIVATE // PERSONAL // VAULTED"))
 	b.WriteString("\n")
 	b.WriteString(m.styles.help.Render(ansi.Wordwrap(vaultPurpose(), max(24, width), " /_-")))
 	b.WriteString("\n\n")

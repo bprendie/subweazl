@@ -122,6 +122,11 @@ func (m Model) runLLMCurator(ctx context.Context, generation string, events chan
 	client := m.client
 	return func() tea.Msg {
 		defer close(events)
+		var err error
+		cfg, err = llm.ResolveConfig(ctx, cfg)
+		if err != nil {
+			return errMsg{err: err}
+		}
 		cached, err := store.CachedSubsonicTracks(0)
 		if err != nil {
 			return errMsg{err: err}

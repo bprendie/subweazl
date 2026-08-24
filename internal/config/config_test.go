@@ -18,6 +18,12 @@ func TestDefaultConfigIsEmpty(t *testing.T) {
 	}
 }
 
+func TestOmarchyProviderIsStructurallyReadyWithoutEndpoint(t *testing.T) {
+	if !(Config{LLM: LLMConfig{Provider: "omarchy"}}).LLMReady() {
+		t.Fatal("omarchy provider should resolve its agent at request time")
+	}
+}
+
 func TestSaveLoadSubsonicConfig(t *testing.T) {
 	configHome := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", configHome)

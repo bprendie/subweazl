@@ -10,7 +10,7 @@ import (
 
 func (m Model) setupView(width int) string {
 	var b strings.Builder
-	title := lipgloss.NewStyle().Foreground(crushGold).Bold(true).Render("subsonic connection")
+	title := lipgloss.NewStyle().Foreground(warning).Bold(true).Render("subsonic connection")
 	b.WriteString(title)
 	b.WriteString("\n")
 	b.WriteString(m.styles.help.Render("[tab] next  [enter] test/save  [ctrl+s] save  [q] quit"))
@@ -26,7 +26,7 @@ func (m Model) setupView(width int) string {
 
 func (m Model) llmConfigView(width int) string {
 	var b strings.Builder
-	title := lipgloss.NewStyle().Foreground(crushGold).Bold(true).Render("llm curator")
+	title := lipgloss.NewStyle().Foreground(warning).Bold(true).Render("llm curator")
 	b.WriteString(title)
 	b.WriteString("\n")
 	b.WriteString(m.styles.help.Render("[up/down] select  [enter] continue  [esc] cancel"))
@@ -56,13 +56,13 @@ func (m Model) llmConfigPanel(width int) string {
 	}
 	current := "not configured"
 	if m.cfg.LLMReady() {
-		current = fmt.Sprintf("%s / %s", m.cfg.LLM.Provider, m.cfg.LLM.Model)
+		current = strings.TrimSpace(fmt.Sprintf("%s / %s", m.cfg.LLM.Provider, m.cfg.LLM.Model))
 	}
-	return lipgloss.JoinVertical(lipgloss.Left, lipgloss.NewStyle().Foreground(crushGold).Bold(true).Render(title), "", body, "", m.styles.help.Render("current "+current))
+	return lipgloss.JoinVertical(lipgloss.Left, lipgloss.NewStyle().Foreground(warning).Bold(true).Render(title), "", body, "", m.styles.help.Render("current "+current))
 }
 
 func (m Model) providerChoicesView() string {
-	choices := []string{"vllm", "ollama"}
+	choices := []string{"omarchy", "ollama", "vllm"}
 	rows := make([]string, 0, len(choices))
 	for i, choice := range choices {
 		rows = append(rows, m.llmSelectRow(i == m.llmDraft.ProviderIndex, fmt.Sprintf("%d", i+1), choice, providerDescription(choice)))
@@ -86,7 +86,7 @@ func (m Model) llmSelectRow(selected bool, key, label, desc string) string {
 	if selected {
 		marker, rowStyle, labelStyle = ">", m.styles.status, m.styles.selected
 	}
-	left := rowStyle.Render(marker) + " " + lipgloss.NewStyle().Foreground(crushPurple).Bold(true).Render(key) + " " + labelStyle.Render(label)
+	left := rowStyle.Render(marker) + " " + lipgloss.NewStyle().Foreground(secondary).Bold(true).Render(key) + " " + labelStyle.Render(label)
 	if desc == "" {
 		return left
 	}
@@ -94,6 +94,9 @@ func (m Model) llmSelectRow(selected bool, key, label, desc string) string {
 }
 
 func providerDescription(providerType string) string {
+	if providerType == "omarchy" {
+		return "current Omarchy default agent, with DJ-Weazl safeguards"
+	}
 	if providerType == "ollama" {
 		return "local Ollama /api/chat"
 	}
@@ -109,7 +112,7 @@ func serverHint(providerType string) string {
 
 func (m Model) setupPanel(width int) string {
 	var b strings.Builder
-	b.WriteString(lipgloss.NewStyle().Foreground(crushMint).Render("Subsonic / Navidrome"))
+	b.WriteString(lipgloss.NewStyle().Foreground(success).Render("Subsonic / Navidrome"))
 	b.WriteString("\n")
 	for i := setupServer; i <= setupPassword; i++ {
 		b.WriteString(m.setup[i].View())

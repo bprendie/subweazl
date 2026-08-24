@@ -2,17 +2,26 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/bprendie/subweazl/internal/config"
+	"github.com/bprendie/subweazl/internal/remote"
 	"github.com/bprendie/subweazl/internal/tui"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "remote" {
+		if err := runRemote(os.Args[2:]); err != nil {
+			fmt.Fprintf(os.Stderr, "subweazl remote: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
 	cfg, err := config.Load()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "config: %v\n", err)
@@ -26,18 +35,57 @@ func main() {
 		return
 	}
 
-	p := tea.NewProgram(tui.New(cfg), tea.WithAltScreen(), tea.WithMouseCellMotion())
+	model := tui.New(cfg)
+	model.EnableRemote()
+	p := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	server, err := remote.Listen(func(command remote.Command) { p.Send(command) })
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "subweazl: %v\n", err)
+		os.Exit(1)
+	}
+	defer server.Close()
+	defer remote.WriteSnapshot(remote.Snapshot{Running: false, State: "stopped"})
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "subweazl: %v\n", err)
 		os.Exit(1)
 	}
 }
 
+func runRemote(args []string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("usage: subweazl remote <status|toggle|next|previous|stop|mode|quit>")
+	}
+	if args[0] == "status" {
+		snapshot, err := remote.ReadSnapshot()
+		if err != nil {
+			return err
+		}
+		output, err := json.MarshalIndent(snapshot, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(output))
+		return nil
+	}
+	commands := map[string]remote.Command{
+		"toggle": remote.Toggle, "play-pause": remote.Toggle,
+		"next": remote.Next, "previous": remote.Previous, "prev": remote.Previous,
+		"stop": remote.Stop,
+		"mode": remote.CycleMode,
+		"quit": remote.Quit,
+	}
+	command, ok := commands[args[0]]
+	if !ok {
+		return fmt.Errorf("unknown command %q", args[0])
+	}
+	return remote.Send(command)
+}
+
 func configureLLM(cfg config.Config) error {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("Subweazl optional LLM curator setup")
-	fmt.Println("Leave provider label blank to disable AI.")
-	provider := ask(reader, "Provider label", cfg.LLM.Provider)
+	fmt.Println("Providers: omarchy, ollama, vllm. Leave blank to disable AI.")
+	provider := strings.ToLower(ask(reader, "Provider", cfg.LLM.Provider))
 	if provider == "" {
 		cfg.LLM = config.LLMConfig{}
 		if err := config.Save(cfg); err != nil {
@@ -46,7 +94,18 @@ func configureLLM(cfg config.Config) error {
 		fmt.Println("LLM curator disabled.")
 		return nil
 	}
-	cfg.LLM.Provider = provider
+	if provider == "omarchy" {
+		cfg.LLM = config.LLMConfig{Provider: provider}
+		if err := config.Save(cfg); err != nil {
+			return err
+		}
+		fmt.Println("DJ-Weazl will use the current Omarchy default agent.")
+		return nil
+	}
+	if provider != "ollama" && provider != "vllm" {
+		return fmt.Errorf("provider must be omarchy, ollama, or vllm")
+	}
+	cfg.LLM = config.LLMConfig{Provider: provider}
 	cfg.LLM.BaseURL = askRequired(reader, "Base URL", cfg.LLM.BaseURL)
 	cfg.LLM.ChatPath = askRequired(reader, "Chat completion path", cfg.LLM.ChatPath)
 	cfg.LLM.ModelsPath = ask(reader, "Model listing path", cfg.LLM.ModelsPath)

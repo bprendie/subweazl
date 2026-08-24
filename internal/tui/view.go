@@ -114,9 +114,9 @@ func (m Model) statusLine() string {
 		if m.paused {
 			state = "paused: "
 		}
-		meter := " " + meterBadge("SYNTH", crushGold)
+		meter := " " + meterBadge("SYNTH", warning)
 		if m.energy.Live {
-			meter = " " + meterBadge("LIVE", crushMint)
+			meter = " " + meterBadge("LIVE", success)
 		}
 		return m.styles.status.Render(ansi.Wordwrap(state+m.playingLabel()+meter, max(20, m.width-4), " /_-"))
 	}
@@ -146,7 +146,7 @@ func meterBadge(label string, color lipgloss.Color) string {
 	return lipgloss.NewStyle().
 		Foreground(color).
 		Border(lipgloss.NormalBorder(), false, true, false, true).
-		BorderForeground(crushPurple).
+		BorderForeground(secondary).
 		Padding(0, 1).
 		Render(label)
 }

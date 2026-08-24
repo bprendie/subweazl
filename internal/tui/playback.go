@@ -32,6 +32,7 @@ func (m *Model) play(track subsonic.Track) tea.Cmd {
 	meterErr := m.startMeter(stream)
 	m.status = "playing " + track.Title
 	m.followPlayingTrack()
+	m.publishRemote(true)
 	if meterErr != nil {
 		m.err = "visualizer: " + meterErr.Error()
 	} else if stateErr != nil {
@@ -91,6 +92,7 @@ func (m *Model) togglePause() {
 	if paused {
 		m.stopMeter()
 		m.status = "paused"
+		m.publishRemote(true)
 		return
 	}
 	if m.playSource != "" {
@@ -99,6 +101,7 @@ func (m *Model) togglePause() {
 		}
 		m.status = "playing " + m.playingLabel()
 	}
+	m.publishRemote(true)
 }
 
 func (m *Model) stop() {
@@ -114,6 +117,7 @@ func (m *Model) stop() {
 	m.coverArt = nil
 	m.coverErr = ""
 	m.status = "stopped"
+	m.publishRemote(true)
 }
 
 func (m Model) isPlaying() bool {

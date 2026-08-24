@@ -190,6 +190,7 @@ func (m *Model) cyclePlaybackMode() {
 	m.playbackMode = (m.playbackMode + 1) % 4
 	m.resetPlaybackTraversal()
 	m.status = "playback mode: " + m.playbackModeLabel()
+	m.publishRemote(true)
 }
 
 func (m Model) playbackModeLabel() string {

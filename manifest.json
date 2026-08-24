@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.bprendie.subweazl",
+  "name": "Subweazl",
+  "version": "1.5.0",
+  "author": "Bob Prendergast",
+  "license": "MIT",
+  "description": "Playback status and remote controls for the Subweazl Subsonic client.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "widget/subweazl/BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Subweazl",
+    "description": "Now playing and remote controls for Subweazl",
+    "category": "Media",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "binaryPath": ""
+    },
+    "schema": [
+      {
+        "key": "binaryPath",
+        "type": "path",
+        "label": "Subweazl binary",
+        "defaultValue": "",
+        "description": "Absolute path to the Subweazl executable. The installer configures this automatically."
+      }
+    ]
+  }
+}

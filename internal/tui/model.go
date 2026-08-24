@@ -126,6 +126,10 @@ type Model struct {
 	focus               paneFocus
 	sidebarIndex        int
 	visualizer          Visualizer
+	themeSignature      string
+	themeChecked        time.Time
+	remoteEnabled       bool
+	remotePublished     time.Time
 }
 
 type item struct {
@@ -237,32 +241,35 @@ func New(cfg config.Config) Model {
 	vaultInput.EchoMode = textinput.EchoPassword
 	vaultInput.CharLimit = 240
 	vaultInput.Width = 42
-	l := list.New(nil, delegate{styles: newStyles()}, 80, 20)
+	appStyles := newStyles()
+	l := list.New(nil, delegate{styles: appStyles}, 80, 20)
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
 	l.SetShowHelp(false)
 	appState, stateErr := state.Load()
 	m := Model{
-		cfg:        cfg,
-		styles:     newStyles(),
-		client:     subsonic.New(cfg.Server, cfg.Username, cfg.Password),
-		player:     player.New(),
-		list:       l,
-		input:      input,
-		vaultInput: vaultInput,
-		spinner:    newSpinner(),
-		mode:       modeHome,
-		status:     "ready",
-		appState:   appState,
-		coverCache: map[string]image.Image{},
-		queue:      playqueue.New(),
-		queueTitle: "queue",
-		visualizer: NewVisualizer(harmonica.FPS(30)),
+		cfg:            cfg,
+		styles:         appStyles,
+		client:         subsonic.New(cfg.Server, cfg.Username, cfg.Password),
+		player:         player.New(),
+		list:           l,
+		input:          input,
+		vaultInput:     vaultInput,
+		spinner:        newSpinner(),
+		mode:           modeHome,
+		status:         "ready",
+		appState:       appState,
+		coverCache:     map[string]image.Image{},
+		queue:          playqueue.New(),
+		queueTitle:     "queue",
+		visualizer:     NewVisualizer(harmonica.FPS(30)),
+		themeSignature: activeThemeSignature,
 	}
 	if stateErr != nil {
 		m.err = stateErr.Error()
 	}
 	m.setup = newSetupInputs(cfg)
+	m.applyThemeStyles()
 	if !cfg.Ready() {
 		m.mode = modeSetup
 		m.status = "connect a Subsonic server"
@@ -318,7 +325,7 @@ func newSetupInputs(cfg config.Config) []textinput.Model {
 }
 
 func newSpinner() spinner.Model {
-	return spinner.New(spinner.WithSpinner(spinner.Jump), spinner.WithStyle(lipgloss.NewStyle().Foreground(crushPink)))
+	return spinner.New(spinner.WithSpinner(spinner.Jump), spinner.WithStyle(lipgloss.NewStyle().Foreground(accent)))
 }
 
 func (m *Model) refreshTitle() {

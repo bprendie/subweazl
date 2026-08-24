@@ -188,14 +188,14 @@ func (m *Model) restoreCuratorInput() {
 }
 
 func (m Model) curatorInputView(width int) string {
-	title := lipgloss.NewStyle().Foreground(crushGold).Bold(true).Render("weazl curator")
+	title := lipgloss.NewStyle().Foreground(warning).Bold(true).Render("weazl curator")
 	help := "[up/down] select  [enter] continue  [esc] cancel"
 	body := m.curatorChoiceView()
 	if m.mode == modeCuratorPrompt {
 		help = "[enter] capture request  [esc] cancel"
 		body = lipgloss.JoinVertical(lipgloss.Left, m.styles.help.Render("Describe the crate. Weazl handles the judgment."), "", m.input.View())
 	}
-	panel := lipgloss.JoinVertical(lipgloss.Left, lipgloss.NewStyle().Foreground(crushMint).Bold(true).Render(m.list.Title), "", body)
+	panel := lipgloss.JoinVertical(lipgloss.Left, lipgloss.NewStyle().Foreground(success).Bold(true).Render(m.list.Title), "", body)
 	view := lipgloss.JoinVertical(lipgloss.Left, title, m.styles.help.Render(help), "", m.styles.panel.Width(width).Render(panel), m.statusLine())
 	if m.err != "" {
 		view += "\n" + m.styles.error.Render(ansi.Wordwrap(m.err, max(20, width-2), " /_-"))

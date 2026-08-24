@@ -10,10 +10,21 @@ func TestControlLStartsWeazlLLMWizard(t *testing.T) {
 	m := newHomeTestModel(t)
 	m.input.Focus()
 	next, _ := m.handleKey(tea.KeyMsg{Type: tea.KeyCtrlL})
-	if next.mode != modeLLMProvider || next.llmDraft.ProviderType != "vllm" {
+	if next.mode != modeLLMProvider || next.llmDraft.ProviderType != "omarchy" {
 		t.Fatalf("mode=%v draft=%#v", next.mode, next.llmDraft)
 	}
 	next, _ = next.handleKey(key("enter"))
+	if next.isLLMConfigMode() || next.cfg.LLM.Provider != "omarchy" || next.cfg.LLM.Model != "" {
+		t.Fatalf("saved mode=%v cfg=%#v", next.mode, next.cfg.LLM)
+	}
+}
+
+func TestLLMWizardSelectsVLLMDefaults(t *testing.T) {
+	m := newHomeTestModel(t)
+	m.pushNav()
+	next, _ := m.startLLMConfig()
+	next, _ = next.handleLLMProviderKey(key("3"))
+	next, _ = next.handleLLMProviderKey(key("enter"))
 	if next.mode != modeLLMServer || !next.input.Focused() || next.input.Value() != "http://localhost:8000" {
 		t.Fatalf("server step mode=%v value=%q", next.mode, next.input.Value())
 	}

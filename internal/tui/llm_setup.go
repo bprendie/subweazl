@@ -24,8 +24,8 @@ func (m Model) isLLMConfigMode() bool {
 
 func (m Model) startLLMConfig() (Model, tea.Cmd) {
 	providerType := m.cfg.LLM.Provider
-	if providerType != "ollama" {
-		providerType = "vllm"
+	if providerType != "ollama" && providerType != "vllm" {
+		providerType = "omarchy"
 	}
 	m.llmDraft = llmConfigDraft{ProviderType: providerType, ServerURL: m.cfg.LLM.BaseURL, Model: m.cfg.LLM.Model, ProviderIndex: providerIndex(providerType), PreviousInput: m.input.Value()}
 	m.input.Reset()
@@ -63,13 +63,20 @@ func (m Model) handleLLMProviderKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 	case "up", "left":
 		m.llmDraft.ProviderIndex = max(0, m.llmDraft.ProviderIndex-1)
 	case "down", "right":
-		m.llmDraft.ProviderIndex = min(1, m.llmDraft.ProviderIndex+1)
+		m.llmDraft.ProviderIndex = min(2, m.llmDraft.ProviderIndex+1)
 	case "1":
 		m.llmDraft.ProviderIndex = 0
 	case "2":
 		m.llmDraft.ProviderIndex = 1
+	case "3":
+		m.llmDraft.ProviderIndex = 2
 	case "enter":
-		m.llmDraft.ProviderType = []string{"vllm", "ollama"}[m.llmDraft.ProviderIndex]
+		m.llmDraft.ProviderType = []string{"omarchy", "ollama", "vllm"}[m.llmDraft.ProviderIndex]
+		if m.llmDraft.ProviderType == "omarchy" {
+			m.llmDraft.Model = ""
+			m.llmDraft.ServerURL = ""
+			return m.saveLLMConfig()
+		}
 		if m.llmDraft.ServerURL == "" || m.cfg.LLM.Provider != m.llmDraft.ProviderType {
 			m.llmDraft.ServerURL = llm.DefaultServerURL(m.llmDraft.ProviderType)
 		}
@@ -175,7 +182,13 @@ func (m Model) handleLLMModelKey(msg tea.KeyMsg) (Model, tea.Cmd) {
 
 func (m Model) saveLLMConfig() (Model, tea.Cmd) {
 	chatPath, modelsPath := llm.ProviderPaths(m.llmDraft.ProviderType)
-	m.cfg.LLM = config.LLMConfig{Provider: m.llmDraft.ProviderType, BaseURL: llm.NormalizeServerURL(m.llmDraft.ProviderType, m.llmDraft.ServerURL), Model: m.llmDraft.Model, ChatPath: chatPath, ModelsPath: modelsPath}
+	m.cfg.LLM = config.LLMConfig{Provider: m.llmDraft.ProviderType}
+	if m.llmDraft.ProviderType != "omarchy" {
+		m.cfg.LLM.BaseURL = llm.NormalizeServerURL(m.llmDraft.ProviderType, m.llmDraft.ServerURL)
+		m.cfg.LLM.Model = m.llmDraft.Model
+		m.cfg.LLM.ChatPath = chatPath
+		m.cfg.LLM.ModelsPath = modelsPath
+	}
 	if err := config.Save(m.cfg); err != nil {
 		m.err = err.Error()
 		return m, noop
@@ -183,7 +196,7 @@ func (m Model) saveLLMConfig() (Model, tea.Cmd) {
 	provider, model := m.llmDraft.ProviderType, m.llmDraft.Model
 	m.restoreLLMInput()
 	m, _ = m.back()
-	m.status = fmt.Sprintf("llm set: %s %s", provider, model)
+	m.status = strings.TrimSpace(fmt.Sprintf("llm set: %s %s", provider, model))
 	m.err = ""
 	return m, noop
 }
@@ -208,10 +221,13 @@ func (m *Model) restoreLLMInput() {
 }
 
 func providerIndex(providerType string) int {
+	if providerType == "omarchy" {
+		return 0
+	}
 	if providerType == "ollama" {
 		return 1
 	}
-	return 0
+	return 2
 }
 
 func modelChoiceIndex(models []string, current string) int {

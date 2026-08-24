@@ -14,22 +14,24 @@ type rgb struct {
 	b float64
 }
 
-var logoStops = []rgb{
-	hexRGB(0xF7D774),
-	hexRGB(0xFFB84D),
-	hexRGB(0xFF7A1A),
+var logoStops, slashStops, trackStops []rgb
+
+func init() { setGradientStops(activePalette) }
+
+func setGradientStops(p themePalette) {
+	logoStops = themeStops(p.logoA, p.logoB, p.logoC)
+	slashStops = themeStops(p.slashA, p.slashB, p.slashC)
+	trackStops = themeStops(p.trackA, p.trackB, p.trackC)
 }
 
-var slashStops = []rgb{
-	hexRGB(0x7D56F4),
-	hexRGB(0xB245FF),
-	hexRGB(0xF25D94),
-}
-
-var trackStops = []rgb{
-	hexRGB(0xF7D774),
-	hexRGB(0xFFB84D),
-	hexRGB(0xF25D94),
+func themeStops(colors ...lipgloss.Color) []rgb {
+	stops := make([]rgb, 0, len(colors))
+	for _, color := range colors {
+		if parsed, ok := parseRGB(string(color)); ok {
+			stops = append(stops, parsed)
+		}
+	}
+	return stops
 }
 
 func renderLogo(s string, width int) string {
@@ -106,7 +108,7 @@ func maxLineWidth(s string) int {
 
 func sampleGradient(t float64, stops []rgb) string {
 	if len(stops) == 0 {
-		return "#FFFFFF"
+		return string(foreground)
 	}
 	if len(stops) == 1 {
 		return stops[0].hex()
@@ -132,6 +134,14 @@ func hexRGB(v int) rgb {
 		g: float64((v >> 8) & 0xff),
 		b: float64(v & 0xff),
 	}
+}
+
+func parseRGB(value string) (rgb, bool) {
+	var v int
+	if _, err := fmt.Sscanf(value, "#%06X", &v); err != nil {
+		return rgb{}, false
+	}
+	return hexRGB(v), true
 }
 
 func (c rgb) hex() string {

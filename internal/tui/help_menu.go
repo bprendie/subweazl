@@ -14,57 +14,57 @@ type helpAction struct {
 
 func (m Model) helpMenu(width int) string {
 	return renderHelpMenu(width, [][]helpAction{
-		{{"tab", "pane", crushPurple}, {"enter", "open/play", crushMint}, {"/", "search", crushPurple}, {"space", "play/pause", crushMint}, {"p/n", "prev/next", crushGold}, {"m", "mode", crushPink}, {"g", "queue", crushGold}, {"G", "AI Mix", crushPink}, {"M", "Mood", crushMint}, {"v", "copy playlist", crushGold}, {"?", "help", muted}, {"q", "quit", muted}},
+		{{"tab", "pane", secondary}, {"enter", "open/play", success}, {"/", "search", secondary}, {"space", "play/pause", success}, {"p/n", "prev/next", warning}, {"m", "mode", accent}, {"g", "queue", warning}, {"G", "AI Mix", accent}, {"M", "Mood", success}, {"v", "copy playlist", warning}, {"?", "help", muted}, {"q", "quit", muted}},
 	})
 }
 
 func (m Model) fullHelpPopup(width, height int) string {
 	panelWidth := clampInt(width-4, 44, 92)
 	var b strings.Builder
-	b.WriteString(lipgloss.NewStyle().Foreground(crushGold).Bold(true).Render("help"))
+	b.WriteString(lipgloss.NewStyle().Foreground(warning).Bold(true).Render("help"))
 	b.WriteString("\n")
 	b.WriteString(m.styles.help.Render("press ? or esc to close"))
 	b.WriteString("\n\n")
 	b.WriteString(renderHelpSection("Navigation", []helpAction{
-		{"tab", "switch sidebar/list", crushPurple},
-		{"up/down", "select sidebar item", crushMint},
-		{"h", "home", crushGold},
-		{"1", "newest albums", crushGold},
-		{"2", "playlists", crushPink},
-		{"3", "random albums", crushMint},
-		{"4", "queue", crushGold},
-		{"5", "private playlists", crushPink},
-		{"/", "search", crushPurple},
+		{"tab", "switch sidebar/list", secondary},
+		{"up/down", "select sidebar item", success},
+		{"h", "home", warning},
+		{"1", "newest albums", warning},
+		{"2", "playlists", accent},
+		{"3", "random albums", success},
+		{"4", "queue", warning},
+		{"5", "private playlists", accent},
+		{"/", "search", secondary},
 		{"left/esc", "back", muted},
 	}, panelWidth-4))
 	b.WriteString("\n\n")
 	b.WriteString(renderHelpSection("Playback", []helpAction{
-		{"enter", "open or play", crushMint},
-		{"space", "play/pause", crushMint},
-		{"n", "next track", crushMint},
-		{"p", "previous track", crushGold},
-		{"m", "playback mode", crushPink},
-		{"s", "stop", crushGold},
-		{"a", "enqueue selected", crushPink},
+		{"enter", "open or play", success},
+		{"space", "play/pause", success},
+		{"n", "next track", success},
+		{"p", "previous track", warning},
+		{"m", "playback mode", accent},
+		{"s", "stop", warning},
+		{"a", "enqueue selected", accent},
 	}, panelWidth-4))
 	b.WriteString("\n\n")
 	b.WriteString(renderHelpSection("Queue & Curation", []helpAction{
-		{"g", "generate deterministic queue", crushGold},
-		{"G", "generate AI Mix", crushPink},
-		{"M", "overwrite server Mood from playing/queued track", crushMint},
-		{"ctrl+l", "llm setup", crushPurple},
-		{"y", "sync encrypted cache", crushMint},
-		{"w", "save queue", crushGold},
-		{"x", "remove queue row", crushPurple},
-		{"c", "clear queue", crushGold},
-		{"u/d", "move queue row", crushMint},
+		{"g", "generate deterministic queue", warning},
+		{"G", "generate AI Mix", accent},
+		{"M", "overwrite server Mood from playing/queued track", success},
+		{"ctrl+l", "llm setup", secondary},
+		{"y", "sync encrypted cache", success},
+		{"w", "save queue", warning},
+		{"x", "remove queue row", secondary},
+		{"c", "clear queue", warning},
+		{"u/d", "move queue row", success},
 	}, panelWidth-4))
 	b.WriteString("\n\n")
 	b.WriteString(renderHelpSection("Playlists", []helpAction{
-		{"v", "copy server ↔ vault", crushMint},
-		{"r", "create station", crushPink},
-		{"ctrl+r", "rename", crushPurple},
-		{"del", "delete playlist", crushPink},
+		{"v", "copy server ↔ vault", success},
+		{"r", "create station", accent},
+		{"ctrl+r", "rename", secondary},
+		{"del", "delete playlist", accent},
 		{"q", "quit", muted},
 	}, panelWidth-4))
 	return lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, m.styles.active.Width(panelWidth).Render(b.String()))
@@ -72,7 +72,7 @@ func (m Model) fullHelpPopup(width, height int) string {
 
 func renderHelpSection(title string, actions []helpAction, width int) string {
 	var b strings.Builder
-	b.WriteString(lipgloss.NewStyle().Foreground(crushMint).Bold(true).Render(title))
+	b.WriteString(lipgloss.NewStyle().Foreground(success).Bold(true).Render(title))
 	b.WriteString("\n")
 	b.WriteString(wrapStyled(renderHelpActions(actions), width))
 	return b.String()
@@ -95,12 +95,12 @@ func renderHelpMenu(width int, groups [][]helpAction) string {
 		}
 		parts = append(parts, strings.Join(actions, "  "))
 	}
-	separator := lipgloss.NewStyle().Foreground(crushPurple).Faint(true).Render("  ╱  ")
+	separator := lipgloss.NewStyle().Foreground(secondary).Faint(true).Render("  ╱  ")
 	return wrapStyled(strings.Join(parts, separator), width)
 }
 
 func renderHelpAction(action helpAction) string {
-	key := lipgloss.NewStyle().Foreground(crushGold).Bold(true).Render("[" + action.key + "]")
+	key := lipgloss.NewStyle().Foreground(warning).Bold(true).Render("[" + action.key + "]")
 	label := lipgloss.NewStyle().Foreground(action.color).Render(" " + action.label)
 	return key + label
 }
