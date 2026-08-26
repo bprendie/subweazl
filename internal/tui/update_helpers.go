@@ -1,54 +1,10 @@
 package tui
 
 import (
-	"github.com/bprendie/subweazl/internal/audio"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
-
-func (m *Model) drainMeter() {
-	if m.meter == nil {
-		m.energy = audio.Sample{}
-		return
-	}
-	for {
-		select {
-		case sample, ok := <-m.meter.Samples():
-			if !ok {
-				if err := m.meterError(); err != nil {
-					m.err = "visualizer: " + err.Error()
-				}
-				m.meter = nil
-				m.energy = audio.Sample{}
-				return
-			}
-			m.energy = sample
-		default:
-			if err := m.meterError(); err != nil {
-				m.err = "visualizer: " + err.Error()
-				m.meter = nil
-				m.energy = audio.Sample{}
-			}
-			return
-		}
-	}
-}
-
-func (m *Model) meterError() error {
-	if m.meter == nil {
-		return nil
-	}
-	select {
-	case err, ok := <-m.meter.Errors():
-		if !ok {
-			return nil
-		}
-		return err
-	default:
-		return nil
-	}
-}
 
 func (m *Model) resize(width, height int) {
 	m.width = width

@@ -32,6 +32,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.stop()
 			m.closeVaultStore()
 			return m, tea.Quit
+		case remote.Visible:
+			m.terminalVisible = true
+		case remote.Hidden:
+			m.terminalVisible = false
 		}
 		cmds = append(cmds, cmd)
 	case tea.WindowSizeMsg:
@@ -137,7 +141,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.err = err.Error()
 			}
 			m.refreshTitle()
-			return m, tick()
+			return m, m.tick()
 		}
 	case coverArtMsg:
 		if msg.id != m.coverID {
@@ -165,7 +169,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tickMsg:
 		m.refreshTheme(time.Time(msg))
 		m.publishRemote()
-		m.drainMeter()
 		if m.playerStarted && m.isPlaying() && !m.paused && !m.player.Running() {
 			finishedID := m.playing.ID
 			m.playerStarted = false
@@ -173,12 +176,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m, cmd = m.playNext()
 			cmds = append(cmds, m.scrobble(finishedID, true), cmd)
 		}
-		m.visualizer.Step(m.isPlaying() && !m.paused, m.energy)
+		m.visualizer.Step(m.isPlaying() && !m.paused && m.terminalVisible)
 		if m.isPlaying() && !m.paused && time.Time(msg).Sub(m.titlePoll) > 2*time.Second {
 			m.titlePoll = time.Time(msg)
 			cmds = append(cmds, fetchTitle(m.player))
 		}
-		cmds = append(cmds, tick())
+		cmds = append(cmds, m.tick())
 	}
 	next, cmd := m.updateFocused(msg)
 	m = next

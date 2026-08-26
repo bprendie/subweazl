@@ -17,6 +17,8 @@ const (
 	Stop      Command = "stop"
 	CycleMode Command = "mode"
 	Quit      Command = "quit"
+	Visible   Command = "visible"
+	Hidden    Command = "hidden"
 )
 
 type Snapshot struct {
@@ -29,6 +31,8 @@ type Snapshot struct {
 	PlaybackMode string    `json:"playback_mode"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
+
+const staleAfter = 75 * time.Second
 
 func StatePath() (string, error) {
 	root := os.Getenv("XDG_STATE_HOME")
@@ -96,7 +100,7 @@ func ReadSnapshot() (Snapshot, error) {
 	if err := json.Unmarshal(data, &snapshot); err != nil {
 		return Snapshot{}, err
 	}
-	if snapshot.Running && time.Since(snapshot.UpdatedAt) > 15*time.Second {
+	if snapshot.Running && time.Since(snapshot.UpdatedAt) > staleAfter {
 		return snapshot, errors.New("Subweazl status is stale")
 	}
 	return snapshot, nil

@@ -4,7 +4,6 @@ import (
 	"math"
 	"strings"
 
-	"github.com/bprendie/subweazl/internal/audio"
 	"github.com/charmbracelet/harmonica"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -24,41 +23,23 @@ func NewVisualizer(delta float64) Visualizer {
 	}
 }
 
-func (v *Visualizer) Step(playing bool, sample audio.Sample) {
+func (v *Visualizer) Step(playing bool) {
 	v.tick++
 	for i := range v.bars {
 		base := 2.0
 		if playing {
-			base = 3 + 13*v.energyAt(i, sample)
+			base = 3 + 13*v.energyAt(i)
 		}
 		target := base
-		if !sample.Live {
+		if playing {
 			target += 5 * (0.5 + 0.5*math.Sin(float64(v.tick)*0.12+float64(i)*0.9))
 		}
 		v.bars[i], v.velocities[i] = v.spring.Update(v.bars[i], v.velocities[i], target)
 	}
 }
 
-func (v Visualizer) energyAt(i int, sample audio.Sample) float64 {
-	if !sample.Live {
-		return 0.5 + 0.5*math.Sin(float64(v.tick+i)*0.35)
-	}
-	if i < len(sample.Bands) {
-		energy := sample.Bands[i]*0.86 + sample.Transient*2.1
-		return clamp01(energy)
-	}
-	energy := sample.Level + sample.Transient*2.1
-	return clamp01(energy)
-}
-
-func clamp01(value float64) float64 {
-	if value < 0 {
-		return 0
-	}
-	if value > 1 {
-		return 1
-	}
-	return value
+func (v Visualizer) energyAt(i int) float64 {
+	return 0.5 + 0.5*math.Sin(float64(v.tick+i)*0.35)
 }
 
 func (v Visualizer) View(styles styles) string {

@@ -6,11 +6,11 @@ import (
 	"image"
 	"time"
 
-	"github.com/bprendie/subweazl/internal/audio"
 	"github.com/bprendie/subweazl/internal/config"
 	"github.com/bprendie/subweazl/internal/localstore"
 	"github.com/bprendie/subweazl/internal/player"
 	"github.com/bprendie/subweazl/internal/playqueue"
+	"github.com/bprendie/subweazl/internal/remote"
 	"github.com/bprendie/subweazl/internal/state"
 	"github.com/bprendie/subweazl/internal/subsonic"
 	"github.com/charmbracelet/bubbles/list"
@@ -68,7 +68,6 @@ type Model struct {
 	styles              styles
 	client              subsonic.Client
 	player              *player.Player
-	meter               *audio.Meter
 	list                list.Model
 	input               textinput.Model
 	setup               []textinput.Model
@@ -115,7 +114,6 @@ type Model struct {
 	coverArt            image.Image
 	coverErr            string
 	coverCache          map[string]image.Image
-	energy              audio.Sample
 	renaming            *subsonic.Playlist
 	savingQueue         bool
 	privateRenaming     string
@@ -130,6 +128,9 @@ type Model struct {
 	themeChecked        time.Time
 	remoteEnabled       bool
 	remotePublished     time.Time
+	remoteLast          remote.Snapshot
+	mediaPublisher      mediaPublisher
+	terminalVisible     bool
 }
 
 type item struct {
@@ -248,22 +249,23 @@ func New(cfg config.Config) Model {
 	l.SetShowHelp(false)
 	appState, stateErr := state.Load()
 	m := Model{
-		cfg:            cfg,
-		styles:         appStyles,
-		client:         subsonic.New(cfg.Server, cfg.Username, cfg.Password),
-		player:         player.New(),
-		list:           l,
-		input:          input,
-		vaultInput:     vaultInput,
-		spinner:        newSpinner(),
-		mode:           modeHome,
-		status:         "ready",
-		appState:       appState,
-		coverCache:     map[string]image.Image{},
-		queue:          playqueue.New(),
-		queueTitle:     "queue",
-		visualizer:     NewVisualizer(harmonica.FPS(30)),
-		themeSignature: activeThemeSignature,
+		cfg:             cfg,
+		styles:          appStyles,
+		client:          subsonic.New(cfg.Server, cfg.Username, cfg.Password),
+		player:          player.New(),
+		list:            l,
+		input:           input,
+		vaultInput:      vaultInput,
+		spinner:         newSpinner(),
+		mode:            modeHome,
+		status:          "ready",
+		appState:        appState,
+		coverCache:      map[string]image.Image{},
+		queue:           playqueue.New(),
+		queueTitle:      "queue",
+		visualizer:      NewVisualizer(harmonica.FPS(15)),
+		themeSignature:  activeThemeSignature,
+		terminalVisible: true,
 	}
 	if stateErr != nil {
 		m.err = stateErr.Error()
@@ -289,10 +291,7 @@ func New(cfg config.Config) Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	if !m.cfg.Ready() || m.mode == modeVault {
-		return tick()
-	}
-	return tick()
+	return m.tick()
 }
 
 func newSetupInputs(cfg config.Config) []textinput.Model {

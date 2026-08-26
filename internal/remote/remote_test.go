@@ -10,7 +10,7 @@ import (
 )
 
 func TestRemoteCommandsAreValid(t *testing.T) {
-	for _, command := range []Command{Toggle, Next, Previous, Stop, CycleMode, Quit} {
+	for _, command := range []Command{Toggle, Next, Previous, Stop, CycleMode, Quit, Visible, Hidden} {
 		if !validCommand(command) {
 			t.Fatalf("command %q should be accepted", command)
 		}

@@ -60,7 +60,6 @@ install_dependencies() {
   local -a packages=()
   command -v go >/dev/null 2>&1 || packages+=(go)
   command -v mpv >/dev/null 2>&1 || packages+=(mpv)
-  command -v ffmpeg >/dev/null 2>&1 || packages+=(ffmpeg)
   command -v cc >/dev/null 2>&1 || packages+=(gcc)
   if [[ $SKIP_WIDGET != 1 ]] && command -v omarchy >/dev/null 2>&1; then
     command -v tmux >/dev/null 2>&1 || packages+=(tmux)
@@ -169,7 +168,7 @@ install_widget() {
   fi
   mkdir -p "$PLUGIN_DIR/widget/subweazl"
   install -m644 "$REPO_ROOT/manifest.json" "$PLUGIN_DIR/manifest.json"
-  install -m644 "$PLUGIN_SOURCE_DIR/Model.js" "$PLUGIN_DIR/widget/subweazl/Model.js"
+  rm -f -- "$PLUGIN_DIR/widget/subweazl/Model.js"
   install -m644 "$PLUGIN_SOURCE_DIR/BarWidget.qml" "$PLUGIN_DIR/widget/subweazl/BarWidget.qml"
   install -m755 "$PLUGIN_SOURCE_DIR/launch.sh" "$PLUGIN_DIR/widget/subweazl/launch.sh"
   omarchy plugin validate "$PLUGIN_DIR"

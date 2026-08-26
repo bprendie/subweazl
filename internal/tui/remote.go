@@ -6,6 +6,14 @@ import (
 	"github.com/bprendie/subweazl/internal/remote"
 )
 
+type mediaPublisher interface {
+	Publish(remote.Snapshot)
+}
+
+func (m *Model) SetMediaPublisher(publisher mediaPublisher) {
+	m.mediaPublisher = publisher
+}
+
 func (m *Model) EnableRemote() {
 	m.remoteEnabled = true
 	m.publishRemote(true)
@@ -13,9 +21,6 @@ func (m *Model) EnableRemote() {
 
 func (m *Model) publishRemote(force ...bool) {
 	if !m.remoteEnabled {
-		return
-	}
-	if len(force) == 0 && time.Since(m.remotePublished) < time.Second {
 		return
 	}
 	snapshot := remote.Snapshot{Running: true, State: "idle", PlaybackMode: m.playbackModeLabel()}
@@ -32,7 +37,15 @@ func (m *Model) publishRemote(force ...bool) {
 		snapshot.Album = m.playing.Album
 		snapshot.Duration = m.playing.Duration
 	}
+	changed := snapshot != m.remoteLast
+	if changed && m.mediaPublisher != nil {
+		m.mediaPublisher.Publish(snapshot)
+	}
+	if !changed && time.Since(m.remotePublished) < 30*time.Second {
+		return
+	}
 	if remote.WriteSnapshot(snapshot) == nil {
 		m.remotePublished = time.Now()
+		m.remoteLast = snapshot
 	}
 }

@@ -157,7 +157,6 @@ function Check-GoVersion {
 
 Ensure-Dependency "go" @("GoLang.Go") "golang" "go"
 Ensure-Dependency "mpv" @("9P3JFR0CLLL6") "mpv" "mpv"
-Ensure-Dependency "ffmpeg" @("Gyan.FFmpeg.Essentials", "BtbN.FFmpeg.GPL", "Gyan.FFmpeg") "ffmpeg" "ffmpeg"
 Check-GoVersion
 
 New-Item -ItemType Directory -Force -Path $BinDir, $GoCache, $GoModCache | Out-Null

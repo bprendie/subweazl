@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.bprendie.subweazl",
   "name": "Subweazl",
-  "version": "1.5.0",
+  "version": "1.7.0",
   "author": "Bob Prendergast",
   "license": "MIT",
   "description": "Playback status and remote controls for the Subweazl Subsonic client.",

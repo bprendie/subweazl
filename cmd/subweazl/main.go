@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/bprendie/subweazl/internal/config"
+	"github.com/bprendie/subweazl/internal/mpris"
 	"github.com/bprendie/subweazl/internal/remote"
 	"github.com/bprendie/subweazl/internal/tui"
 	tea "github.com/charmbracelet/bubbletea"
@@ -36,8 +37,20 @@ func main() {
 	}
 
 	model := tui.New(cfg)
+	var p *tea.Program
+	media, mediaErr := mpris.Start(func(command remote.Command) {
+		if p != nil {
+			p.Send(command)
+		}
+	})
+	if mediaErr != nil {
+		fmt.Fprintf(os.Stderr, "subweazl: MPRIS unavailable: %v\n", mediaErr)
+	} else {
+		defer media.Close()
+		model.SetMediaPublisher(media)
+	}
 	model.EnableRemote()
-	p := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	p = tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	server, err := remote.Listen(func(command remote.Command) { p.Send(command) })
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "subweazl: %v\n", err)
@@ -70,9 +83,11 @@ func runRemote(args []string) error {
 	commands := map[string]remote.Command{
 		"toggle": remote.Toggle, "play-pause": remote.Toggle,
 		"next": remote.Next, "previous": remote.Previous, "prev": remote.Previous,
-		"stop": remote.Stop,
-		"mode": remote.CycleMode,
-		"quit": remote.Quit,
+		"stop":    remote.Stop,
+		"mode":    remote.CycleMode,
+		"quit":    remote.Quit,
+		"visible": remote.Visible,
+		"hidden":  remote.Hidden,
 	}
 	command, ok := commands[args[0]]
 	if !ok {

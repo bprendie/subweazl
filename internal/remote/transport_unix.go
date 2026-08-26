@@ -99,7 +99,7 @@ func (s *Server) Close() error {
 }
 
 func validCommand(command Command) bool {
-	return command == Toggle || command == Next || command == Previous || command == Stop || command == CycleMode || command == Quit
+	return command == Toggle || command == Next || command == Previous || command == Stop || command == CycleMode || command == Quit || command == Visible || command == Hidden
 }
 
 func errorText(err error) string {

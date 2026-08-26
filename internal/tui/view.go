@@ -114,10 +114,7 @@ func (m Model) statusLine() string {
 		if m.paused {
 			state = "paused: "
 		}
-		meter := " " + meterBadge("SYNTH", warning)
-		if m.energy.Live {
-			meter = " " + meterBadge("LIVE", success)
-		}
+		meter := " " + meterBadge("ECO", success)
 		return m.styles.status.Render(ansi.Wordwrap(state+m.playingLabel()+meter, max(20, m.width-4), " /_-"))
 	}
 	return m.styles.status.Render(ansi.Wordwrap(m.status, max(20, m.width-4), " /_-"))
@@ -151,8 +148,18 @@ func meterBadge(label string, color lipgloss.Color) string {
 		Render(label)
 }
 
-func tick() tea.Cmd {
-	return tea.Tick(time.Second/30, func(t time.Time) tea.Msg { return tickMsg(t) })
+func (m Model) tick() tea.Cmd {
+	return tea.Tick(m.tickInterval(), func(t time.Time) tea.Msg { return tickMsg(t) })
+}
+
+func (m Model) tickInterval() time.Duration {
+	if m.isPlaying() && !m.paused && m.terminalVisible {
+		return time.Second / 15
+	}
+	if !m.terminalVisible && !m.isPlaying() {
+		return 30 * time.Second
+	}
+	return time.Second
 }
 
 func max(a, b int) int {

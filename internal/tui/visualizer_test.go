@@ -3,13 +3,11 @@ package tui
 import (
 	"strings"
 	"testing"
-
-	"github.com/bprendie/subweazl/internal/audio"
 )
 
 func TestVisualizerRendersSingleLine(t *testing.T) {
 	v := NewVisualizer(0.016)
-	v.Step(true, audio.Sample{Live: true})
+	v.Step(true)
 	got := v.View(newStyles())
 	if strings.Contains(got, "\n") {
 		t.Fatalf("visualizer rendered multiple lines: %q", got)

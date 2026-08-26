@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/bprendie/subweazl/internal/audio"
 	"github.com/bprendie/subweazl/internal/localstore"
 	"github.com/bprendie/subweazl/internal/player"
 	"github.com/bprendie/subweazl/internal/state"
@@ -29,13 +28,10 @@ func (m *Model) play(track subsonic.Track) tea.Cmd {
 	m.coverErr = ""
 	stateErr := m.saveLastPlayed(track)
 	historyErr := m.recordSubsonicPlay(track)
-	meterErr := m.startMeter(stream)
 	m.status = "playing " + track.Title
 	m.followPlayingTrack()
 	m.publishRemote(true)
-	if meterErr != nil {
-		m.err = "visualizer: " + meterErr.Error()
-	} else if stateErr != nil {
+	if stateErr != nil {
 		m.err = stateErr.Error()
 	} else if historyErr != nil {
 		m.err = historyErr.Error()
@@ -90,15 +86,11 @@ func (m *Model) togglePause() {
 	}
 	m.paused = paused
 	if paused {
-		m.stopMeter()
 		m.status = "paused"
 		m.publishRemote(true)
 		return
 	}
 	if m.playSource != "" {
-		if err := m.startMeter(m.playSource); err != nil {
-			m.err = "visualizer: " + err.Error()
-		}
 		m.status = "playing " + m.playingLabel()
 	}
 	m.publishRemote(true)
@@ -106,7 +98,6 @@ func (m *Model) togglePause() {
 
 func (m *Model) stop() {
 	m.player.Stop()
-	m.stopMeter()
 	m.playing = nil
 	m.playSource = ""
 	m.paused = false
@@ -129,25 +120,6 @@ func (m Model) playingLabel() string {
 		return m.playing.Title
 	}
 	return ""
-}
-
-func (m *Model) startMeter(url string) error {
-	m.stopMeter()
-	meter, err := audio.StartMeter(url)
-	if err != nil {
-		m.energy = audio.Sample{}
-		return err
-	}
-	m.meter = meter
-	return nil
-}
-
-func (m *Model) stopMeter() {
-	if m.meter != nil {
-		m.meter.Stop()
-	}
-	m.meter = nil
-	m.energy = audio.Sample{}
 }
 
 func fetchTitle(player *player.Player) tea.Cmd {

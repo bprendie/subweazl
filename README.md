@@ -18,7 +18,9 @@ Subweazl is the exploit. It’s a sovereign, terminal-native Subsonic client bui
 
 There is no local-folder mode. We pull the audio from the server and keep the state in the vault. Play history, queue snapshots, private playlists, cached metadata, and deterministic recipes are locked under paranoid local encryption.
 
-Cover art renders right in the grid. `mpv` does the heavy lifting. `ffmpeg` feeds the live Harmonica VU meters.
+Cover art renders right in the grid. `mpv` owns the one audio stream and does
+the decoding. The low-power Harmonica visualizer stays inside the TUI without
+opening a second network stream or decoder.
 
 No cloud sync. No telemetry. Just your music, locked down tight.
 
@@ -29,7 +31,7 @@ No cloud sync. No telemetry. Just your music, locked down tight.
 * Browse albums, tracks, and playlists from your own Subsonic-compatible server.
 * Stream through `mpv`; pause, skip, reorder, shuffle, repeat, and save queues
   without handing an engagement machine the aux cord.
-* Render pixel-art covers and a live `ffmpeg` visualizer directly in the TUI.
+* Render pixel-art covers and a low-power visualizer directly in the TUI.
 * Encrypt history, queue snapshots, cached metadata, private playlists,
   deterministic recipes, and DJ-Weazl curator runs in the local vault.
 * Put the current Omarchy agent to work against music you actually own, with
@@ -39,7 +41,7 @@ No cloud sync. No telemetry. Just your music, locked down tight.
 
 ## Forge The Binary
 
-You need Go 1.25+, `mpv`, `ffmpeg`, and a C compiler for the SQLite vault. The Omarchy widget also uses `tmux` and `jq`. If you don't have them, shave the yak.
+You need Go 1.25+, `mpv`, and a C compiler for the SQLite vault. The Omarchy widget also uses `tmux` and `jq`. If you don't have them, shave the yak.
 
 **Linux / macOS:**
 
@@ -135,11 +137,14 @@ identity: the banner, DJ-Weazl, vault language, and BBS controls remain intact
 while panels, gradients, status colors, inputs, and visualizer colors move with
 the selected theme.
 
-The bar widget is a remote deck for the one running Subweazl process. It shows
-the current cut, opens playback controls, cycles modes, and launches Subweazl in
-the named `subweazl` tmux session. Close the terminal and the interface detaches;
-playback, queue state, and the unlocked Weazl vault stay alive. Open Subweazl
-from the widget to reattach to that exact session.
+The bar widget is a passive MPRIS deck for the one running Subweazl process. It
+subscribes to native desktop media events instead of polling or launching a
+status command every second. It shows the current cut, opens playback controls,
+cycles modes, and launches Subweazl in the named `subweazl` tmux session. Close
+the terminal and the interface detaches; playback, queue state, and the unlocked
+Weazl vault stay alive. Open Subweazl from the widget to reattach to that exact
+session. Detached, paused, and idle sessions fall back to the one-hertz clock;
+the visible low-power visualizer tops out at 15 Hz.
 
 `Stop` kills playback only. **Quit and lock Weazl vault** stops playback, closes
 the encrypted store, clears the in-memory key, and ends the listening session.
@@ -151,11 +156,12 @@ keys.
 
 ### The Private Remote Wire
 
-The live TUI owns a private Unix socket and publishes a small atomic playback
+The live TUI owns a private Unix socket and publishes a small atomic diagnostic
 snapshot under the XDG state directory. That snapshot contains display state,
-not credentials, vault contents, playlists, or DJ-Weazl prompts. The widget and
-media-key helper both use this wire, so every controller talks to one player
-and one queue.
+not credentials, vault contents, playlists, or DJ-Weazl prompts. Standard
+desktop playback and widget state use MPRIS; Weazl-specific mode and secure-quit
+actions use the private wire, so every controller still talks to one player and
+one queue.
 
 ```sh
 subweazl remote status
