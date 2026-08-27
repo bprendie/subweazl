@@ -80,7 +80,7 @@ func Generate(ctx context.Context, client Client, req Request) (Result, error) {
 	}
 	candidates := candidateList(req.Candidates, req.RecentIDs, req.Seed.ID, req.Preferred)
 	if req.Mode == ModeMood && (req.Seed.ID == "" || !containsCandidate(candidates, req.Seed.ID)) {
-		return Result{}, errors.New("currently playing track is not available in the synced cache")
+		return Result{}, errors.New("Mood seed is not available in the synced cache")
 	}
 	if len(candidates) < limit {
 		return Result{}, fmt.Errorf("need %d eligible cached tracks; found %d", limit, len(candidates))
@@ -186,7 +186,7 @@ func GenerateStreaming(ctx context.Context, client StreamingClient, req Request,
 	}
 	candidates := candidateList(req.Candidates, req.RecentIDs, req.Seed.ID, req.Preferred)
 	if req.Mode == ModeMood && (req.Seed.ID == "" || !containsCandidate(candidates, req.Seed.ID)) {
-		return Result{}, errors.New("currently playing track is not available in the synced cache")
+		return Result{}, errors.New("Mood seed is not available in the synced cache")
 	}
 	if len(candidates) < limit {
 		return Result{}, fmt.Errorf("need %d eligible cached tracks; found %d", limit, len(candidates))

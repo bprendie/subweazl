@@ -18,7 +18,10 @@ func Open(path string) (*Store, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, err
 	}
-	db, err := sql.Open("sqlite3", path+"?_foreign_keys=on")
+	// Cache sync, playback history, and queue persistence can briefly write at
+	// the same time. WAL lets readers continue during those writes, while the
+	// busy timeout makes a competing writer wait instead of failing instantly.
+	db, err := sql.Open("sqlite3", path+"?_foreign_keys=on&_journal_mode=WAL&_busy_timeout=5000")
 	if err != nil {
 		return nil, err
 	}

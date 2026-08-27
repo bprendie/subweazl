@@ -9,6 +9,7 @@ import (
 	"github.com/bprendie/subweazl/internal/curator"
 	"github.com/bprendie/subweazl/internal/localstore"
 	"github.com/bprendie/subweazl/internal/subsonic"
+	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -59,13 +60,19 @@ func TestApplyLLMQueuePersistsQueue(t *testing.T) {
 	}
 }
 
-func TestMoodSeedPrefersPlayingThenQueuedTrack(t *testing.T) {
+func TestMoodSeedPrefersPlayingThenSelectedThenQueuedTrack(t *testing.T) {
 	m := newHomeTestModel(t)
 	if seed, ok := m.moodSeed(); ok || seed.ID != "" {
 		t.Fatalf("idle seed=%#v ok=%v", seed, ok)
 	}
 	m.queue.Replace([]subsonic.Track{testTrack("queued")}, 0)
+	m.list.SetItems([]list.Item{item{kind: "song", track: testTrack("selected")}})
 	seed, ok := m.moodSeed()
+	if !ok || seed.ID != "selected" {
+		t.Fatalf("selected seed=%#v ok=%v", seed, ok)
+	}
+	m.list.SetItems(nil)
+	seed, ok = m.moodSeed()
 	if !ok || seed.ID != "queued" {
 		t.Fatalf("queued seed=%#v ok=%v", seed, ok)
 	}
@@ -75,6 +82,37 @@ func TestMoodSeedPrefersPlayingThenQueuedTrack(t *testing.T) {
 	seed, ok = m.moodSeed()
 	if !ok || seed.ID != "teenagers" {
 		t.Fatalf("playing seed=%#v ok=%v", seed, ok)
+	}
+}
+
+func TestCachedMoodSeedValidatesBeforePublishing(t *testing.T) {
+	m := newHomeTestModel(t)
+	seed := testTrack("seed")
+	seed.Title = "Uncached Signal"
+	cachedTrack := testTrack("seed")
+	cachedTrack.Title = "Canonical Signal"
+	if err := m.vaultStore.BeginSubsonicCacheSync(); err != nil {
+		t.Fatalf("begin cache: %v", err)
+	}
+	if err := m.vaultStore.UpsertSubsonicTrack(cachedTrack, false); err != nil {
+		t.Fatalf("cache canonical seed: %v", err)
+	}
+	got, err := cachedMoodSeed(seed, []localstore.CachedTrack{{Track: cachedTrack}})
+	if err != nil || got.Title != "Canonical Signal" {
+		t.Fatalf("cached seed=%#v err=%v", got, err)
+	}
+	missing := testTrack("missing")
+	missing.Title = "Hydrated Signal"
+	got, refreshed, err := ensureCachedMoodSeed(m.vaultStore, missing, []localstore.CachedTrack{{Track: cachedTrack}})
+	if err != nil || got.ID != missing.ID {
+		t.Fatalf("hydrated seed=%#v err=%v", got, err)
+	}
+	found := false
+	for _, candidate := range refreshed {
+		found = found || candidate.Track.ID == missing.ID
+	}
+	if !found {
+		t.Fatalf("hydrated seed absent from encrypted cache: %#v", refreshed)
 	}
 }
 

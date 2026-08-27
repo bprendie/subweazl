@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestOpenCreatesDatabaseDirectory(t *testing.T) {
@@ -15,6 +16,43 @@ func TestOpenCreatesDatabaseDirectory(t *testing.T) {
 	defer store.Close()
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("database file was not created: %v", err)
+	}
+}
+
+func TestOpenWaitsForCompetingWriter(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.sqlite3")
+	first, err := Open(path)
+	if err != nil {
+		t.Fatalf("Open first: %v", err)
+	}
+	defer first.Close()
+	if err := first.Migrate(); err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+	second, err := Open(path)
+	if err != nil {
+		t.Fatalf("Open second: %v", err)
+	}
+	defer second.Close()
+
+	tx, err := first.db.Begin()
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if _, err := tx.Exec(`insert into folders (id, payload) values ('held', '{}')`); err != nil {
+		t.Fatalf("hold write lock: %v", err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, err := second.db.Exec(`insert into folders (id, payload) values ('waited', '{}')`)
+		done <- err
+	}()
+	time.Sleep(50 * time.Millisecond)
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	if err := <-done; err != nil {
+		t.Fatalf("competing writer did not wait: %v", err)
 	}
 }
 

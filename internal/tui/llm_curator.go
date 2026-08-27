@@ -110,10 +110,47 @@ func (m Model) moodSeed() (subsonic.Track, bool) {
 	if m.playing != nil && m.playing.ID != "" {
 		return *m.playing, true
 	}
+	if track, ok := m.selectedTrack(); ok {
+		return track, true
+	}
 	if track, ok := m.queue.Current(); ok {
 		return track, true
 	}
-	return m.selectedTrack()
+	return subsonic.Track{}, false
+}
+
+func cachedMoodSeed(seed subsonic.Track, cached []localstore.CachedTrack) (subsonic.Track, error) {
+	for _, candidate := range cached {
+		if candidate.Track.ID == seed.ID {
+			return candidate.Track, nil
+		}
+	}
+	name := strings.TrimSpace(seed.Title)
+	if name == "" {
+		name = seed.ID
+	}
+	return subsonic.Track{}, fmt.Errorf("Mood seed %q is not in the encrypted cache; press y to sync the library, then try again", name)
+}
+
+func ensureCachedMoodSeed(store *localstore.Store, seed subsonic.Track, cached []localstore.CachedTrack) (subsonic.Track, []localstore.CachedTrack, error) {
+	if canonical, err := cachedMoodSeed(seed, cached); err == nil {
+		return canonical, cached, nil
+	}
+	if seed.ID == "" {
+		return subsonic.Track{}, cached, errors.New("Mood seed has no Subsonic track ID")
+	}
+	if err := store.UpsertSubsonicTrack(seed, false); err != nil {
+		return subsonic.Track{}, cached, fmt.Errorf("encrypt Mood seed %q into cache: %w", seed.Title, err)
+	}
+	refreshed, err := store.CachedSubsonicTracks(0)
+	if err != nil {
+		return subsonic.Track{}, cached, fmt.Errorf("reload encrypted cache after adding Mood seed: %w", err)
+	}
+	canonical, err := cachedMoodSeed(seed, refreshed)
+	if err != nil {
+		return subsonic.Track{}, refreshed, err
+	}
+	return canonical, refreshed, nil
 }
 
 func (m Model) runLLMCurator(ctx context.Context, generation string, events chan tea.Msg, request curatorRequest) tea.Cmd {
@@ -133,6 +170,12 @@ func (m Model) runLLMCurator(ctx context.Context, generation string, events chan
 		}
 		if len(cached) == 0 {
 			return errMsg{err: fmt.Errorf("sync the Subsonic cache first")}
+		}
+		if request.Mode == curator.ModeMood {
+			request.Seed, cached, err = ensureCachedMoodSeed(store, request.Seed, cached)
+			if err != nil {
+				return errMsg{err: err}
+			}
 		}
 		recent, err := store.RecentSubsonicTrackIDs(100)
 		if err != nil {
@@ -174,7 +217,7 @@ func (m Model) runLLMCurator(ctx context.Context, generation string, events chan
 		}
 		if request.Mode == curator.ModeMood {
 			if request.Seed.ID == "" {
-				return errMsg{err: fmt.Errorf("play a track before creating a Mood playlist")}
+				return errMsg{err: fmt.Errorf("select or queue a track before creating a Mood playlist")}
 			}
 			if similar, err := client.Similar(ctx, request.Seed, 80); err == nil {
 				for _, track := range similar {
